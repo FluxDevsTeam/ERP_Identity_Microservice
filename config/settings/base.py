@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'drf_yasg',
-    # 'django_filters',
+    'django_filters',
     'rest_framework',
     'api',
     'apps.tenant',
@@ -149,6 +149,7 @@ SWAGGER_SETTINGS = {
         }
     }
 }
+
 JAZZMIN_SETTINGS = {
     "site_title": "KidsDesignCompany",
     "site_header": "ERP Identity Microservice",
@@ -166,3 +167,10 @@ CORS_ALLOW_HEADERS = ['Authorization', 'Content-Type', 'Accept',]
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
 FRONTEND_PATH = os.getenv("FRONTEND_PATH")
+
+# Google Authentication Settings
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+
+# microservices
+IDENTITY_MICROSERVICE_URL = os.getenv("IDENTITY_MICROSERVICE_URL")
+BILLING_MICROSERVICE_URL = os.getenv("BILLING_MICROSERVICE_URL")
