@@ -5,8 +5,8 @@ from .models import Tenant, Branch
 class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
-        fields = ["id", "name", "industry", "created_at", "updated_at", "status"]
-        read_only_fields = ["id"]
+        fields = ["id", "name", "industry", "created_by", "created_at", "updated_at", "status"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class SimpleTenantSerializer(serializers.ModelSerializer):
@@ -18,7 +18,7 @@ class SimpleTenantSerializer(serializers.ModelSerializer):
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
-        fields = ["id", "name", "location", "created_at", "updated_at"]
+        fields = ["id", "name", "location", "tenant", "created_at", "updated_at"]
         read_only_fields = ["id"]
 
 

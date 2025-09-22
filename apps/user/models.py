@@ -84,34 +84,33 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser):
+class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = (
         ('ceo', 'CEO'),
-        ('Branch_manager', 'Branch_Manager'),
-        ('admin', 'Admin'),
-        ('manager', 'Manager'),
+        ('Branch_manager', 'Branch Manager'),
         ('employee', 'Employee'),
     )
-    username = None
     email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    phone_number = models.CharField(max_length=15, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee')
+    tenant = models.ForeignKey(Tenant, on_delete=models.SET_NULL, null=True, blank=True)
+    branch = models.ManyToManyField(Branch, blank=True)
+    otp = models.CharField(max_length=6, null=True, blank=True)
+    otp_created_at = models.DateTimeField(null=True, blank=True)
     is_verified = models.BooleanField(default=False)
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
-    otp = models.IntegerField(null=True)
-    otp_created_at = models.DateTimeField(auto_now_add=True)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
-    branch = models.ManyToManyField(Branch)
-    role = models.CharField(choices=ROLE_CHOICES, default="admin")
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_users')
+    updated_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_users')
 
     objects = UserManager()
 
-    def tokens(self):
-        refresh = RefreshToken.for_user(self)
-        return ({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        })
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
 
     def __str__(self):
         return self.email
