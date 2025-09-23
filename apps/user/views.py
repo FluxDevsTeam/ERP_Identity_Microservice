@@ -69,30 +69,25 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         ForgotPasswordRequest.objects.filter(user=user).delete()
         ForgotPasswordRequest.objects.create(user=user)
 
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=email,
-                email_type="reset_link",
-                subject="Password Reset Request",
-                action="Password Reset",
-                message="You have requested to reset your password. Click the link below to proceed. This link will expire in 10 minutes. If you did not make this request, please contact support immediately.",
-                link=reset_url,
-                link_text="Reset Password"
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': email,
-                    'email_type': "reset_link",
-                    'subject': "Password Reset Request",
-                    'action': "Password Reset",
-                    'message': "You have requested to reset your password. Click the link below to proceed. This link will expire in 10 minutes. If you did not make this request, please contact support immediately.",
-                    'link': reset_url,
-                    'link_text': "Reset Password"
-                }
-            )
+        result, status_code = send_email_to_erp_support(
+            user_email=email,
+            email_type="reset_link",
+            subject="Password Reset Request",
+            action="Password Reset",
+            message="You have requested to reset your password. Click the link below to proceed. This link will expire in 10 minutes. If you did not make this request, please contact support immediately.",
+            link=reset_url,
+            link_text="Reset Password"
+        )
+
+        if status_code != 200:
+            logger.error(f"Failed to send password reset email: {result.get('error')}")
+            return Response({
+                "data": "Password reset requested, but email sending failed",
+                "email_error": result.get('error', 'Unknown error')
+            }, status=status.HTTP_200_OK)
 
         return Response({"data": "A password reset link has been sent to your email."}, status=status.HTTP_200_OK)
+
 
     @swagger_helper("ForgotPassword", "Set a new password (CEO only)")
     @action(detail=False, methods=['post'], url_path='set-new-password')

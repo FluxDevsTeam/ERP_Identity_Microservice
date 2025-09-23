@@ -37,3 +37,45 @@ def swagger_helper(tags, model, description=None):
         return swagger_auto_schema(operation_id=f"{action_type} {model}", operation_description=description, tags=[tags])(func)
 
     return decorators
+
+def send_email_to_erp_support(user_email, email_type, subject, action, message, otp=None, link=None, link_text=None):
+    """
+    Send an email request to the ERP Support Microservice with HMAC authentication.
+    """
+    timestamp = str(int(time.time()))
+    data = {
+        'user_email': user_email,
+        'email_type': email_type,
+        'subject': subject,
+        'action': action,
+        'message': message,
+        'otp': otp,
+        'link': link,
+        'link_text': link_text
+    }
+    # Ensure consistent JSON serialization for HMAC
+    payload = json.dumps(data, sort_keys=True, separators=(',', ':'))
+    signature = hmac.new(
+        settings.ERP_SUPPORT_MICROSERVICE_SECRET.encode('utf-8'),
+        f"{timestamp}:{payload}".encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+    headers = {
+        'X-Timestamp': timestamp,
+        'X-Signature': signature,
+        'Content-Type': 'application/json'
+    }
+
+    try:
+        response = requests.post(
+            f"{settings.ERP_SUPPORT_MICROSERVICE_URL}/api/v1/send-email/",
+            json=data,
+            headers=headers
+        )
+        response.raise_for_status()
+        logger.info(f"Email request sent successfully: {user_email}, {email_type}")
+        return response.json(), response.status_code
+    except requests.RequestException as e:
+        logger.error(f"Failed to send email request: {str(e)}")
+        return {'error': str(e)}, 500
