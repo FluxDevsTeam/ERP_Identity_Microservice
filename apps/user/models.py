@@ -1,12 +1,14 @@
+import uuid
+import uuid
 import rest_framework_simplejwt.tokens
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from rest_framework_simplejwt.tokens import RefreshToken
-from apps.tenant.models import Tenant, Branch
 from django.conf import settings
 
 
 class NameChangeRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="name_change_request")
     new_first_name = models.CharField(max_length=150, null=True, blank=True)
     new_last_name = models.CharField(max_length=150, null=True, blank=True)
@@ -19,6 +21,7 @@ class NameChangeRequest(models.Model):
 
 
 class EmailChangeRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="email_change_request")
     new_email = models.EmailField(unique=True)
     otp = models.IntegerField()
@@ -29,6 +32,7 @@ class EmailChangeRequest(models.Model):
 
 
 class ForgotPasswordRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     otp = models.IntegerField(null=True, blank=True)
     new_password = models.CharField(max_length=128, null=True, blank=True)
@@ -39,6 +43,7 @@ class ForgotPasswordRequest(models.Model):
 
 
 class PasswordChangeRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='password_change_requests')
     otp = models.CharField(max_length=6)
     new_password = models.CharField(max_length=128)
@@ -85,6 +90,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ROLE_CHOICES = (
         ('ceo', 'CEO'),
         ('Branch_manager', 'Branch Manager'),
@@ -95,8 +101,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee')
-    tenant = models.ForeignKey(Tenant, on_delete=models.SET_NULL, null=True, blank=True)
-    branch = models.ManyToManyField(Branch, blank=True)
+    tenant = models.ForeignKey('tenant.Tenant', on_delete=models.SET_NULL, null=True, blank=True)
+    branch = models.ManyToManyField('tenant.Branch', blank=True)
     otp = models.CharField(max_length=6, null=True, blank=True)
     otp_created_at = models.DateTimeField(null=True, blank=True)
     is_verified = models.BooleanField(default=False)

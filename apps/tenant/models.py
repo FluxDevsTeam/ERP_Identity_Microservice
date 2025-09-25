@@ -1,10 +1,10 @@
 # apps/tenant/models.py
+import uuid
 from django.db import models
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from django.conf import settings
 
 class Tenant(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     STATUS_CHOICES = (
         ("Active", "Active"),
         ("Inactive", "Inactive"),
@@ -28,7 +28,7 @@ class Tenant(models.Model):
     )
     name = models.CharField(max_length=200)
     industry = models.CharField(max_length=100, choices=INDUSTRY_CHOICES, default="Other")
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_tenants')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_tenants')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=200, choices=STATUS_CHOICES, default="Active")
@@ -37,6 +37,7 @@ class Tenant(models.Model):
         return f"tenant: {self.name}, industry: {self.industry}"
 
 class Branch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='branches')
     name = models.CharField(max_length=200)
     location = models.CharField(max_length=500)

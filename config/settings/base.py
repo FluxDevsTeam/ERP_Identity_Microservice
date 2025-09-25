@@ -139,6 +139,14 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('JWT',),
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=20),
+    'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
+    'ISSUER': 'identity-ms',
+    'AUDIENCE': ['finance-ms'],  # Add all microservices that will use these tokens
+    'JTI_CLAIM': 'jti',
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_ID_FIELD': 'id',
+    'TOKEN_USER_CLASS': 'apps.user.models.User',
 }
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
