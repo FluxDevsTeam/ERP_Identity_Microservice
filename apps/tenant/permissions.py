@@ -1,5 +1,6 @@
 from rest_framework import permissions
-from apps.user.models import User, Tenant, Branch
+from apps.user.models import User
+from .models import Tenant, Branch
 from django.conf import settings
 import requests
 
