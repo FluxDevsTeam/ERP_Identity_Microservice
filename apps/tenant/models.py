@@ -28,7 +28,7 @@ class Tenant(models.Model):
     )
     name = models.CharField(max_length=200)
     industry = models.CharField(max_length=100, choices=INDUSTRY_CHOICES, default="Other")
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_tenants')
+    created_by = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_tenant')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=200, choices=STATUS_CHOICES, default="Active")
