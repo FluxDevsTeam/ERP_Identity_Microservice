@@ -447,29 +447,30 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             if not user.is_verified:
                 otp = random.randint(100000, 999999)
                 user.otp = otp
+                print(otp)  #this is a temporary bypass
                 user.otp_created_at = now()
                 user.save()
 
-                if not is_celery_healthy():
-                    send_email_synchronously(
-                        user_email=email,
-                        email_type="otp",
-                        subject="Verify Your Email",
-                        action="Email Verification",
-                        message="Use the OTP below to verify your email address.",
-                        otp=otp
-                    )
-                else:
-                    send_generic_email_task.apply_async(
-                        kwargs={
-                            'user_email': email,
-                            'email_type': "otp",
-                            'subject': "Verify Your Email",
-                            'action': "Email Verification",
-                            'message': "Use the OTP below to verify your email address.",
-                            'otp': otp
-                        }
-                    )
+                # if not is_celery_healthy():
+                #     send_email_synchronously(
+                #         user_email=email,
+                #         email_type="otp",
+                #         subject="Verify Your Email",
+                #         action="Email Verification",
+                #         message="Use the OTP below to verify your email address.",
+                #         otp=otp
+                #     )
+                # else:
+                #     send_generic_email_task.apply_async(
+                #         kwargs={
+                #             'user_email': email,
+                #             'email_type': "otp",
+                #             'subject': "Verify Your Email",
+                #             'action': "Email Verification",
+                #             'message': "Use the OTP below to verify your email address.",
+                #             'otp': otp
+                #         }
+                #     )
 
                 return Response({"data": "User already exists but is not verified. OTP resent."},
                                 status=status.HTTP_200_OK)
@@ -791,7 +792,8 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
 
 class UserManagementViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated, IsCEOorBranchManager, HasActiveSubscription]
+    # permission_classes = [IsAuthenticated, IsCEOorBranchManager, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, IsCEOorBranchManager]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
     filterset_fields = ['role', 'tenant', 'branch', 'is_verified']
@@ -817,7 +819,8 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'list']:
-            return [IsAuthenticated(), IsCEOorBranchManager(), HasActiveSubscription()]
+            return [IsAuthenticated(), IsCEOorBranchManager()]
+            # return [IsAuthenticated(), IsCEOorBranchManager(), HasActiveSubscription()]
         if self.action in ['retrieve', 'update', 'partial_update']:
             return [IsAuthenticated(), CanViewEditUser()]
         if self.action == 'destroy':
@@ -893,6 +896,10 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             )
 
         return Response({"data": "User updated successfully."}, status=status.HTTP_200_OK)
+
+    @swagger_helper("User Management", "Update a user's details. Partial updates are supported.")
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
     @swagger_helper("User Management", "Delete a user from the system.")
     def destroy(self, request, *args, **kwargs):

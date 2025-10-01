@@ -6,8 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import TenantSerializer, BranchSerializer, ViewBranchSerializer
 from .models import Tenant, Branch
 from .utils import swagger_helper
-from .permissions import IsSuperuser, IsCEO, HasActiveSubscription, IsBranchManager, IsCEOorBranchManager, \
-    CanViewEditTenant, CanDeleteTenant, CanViewEditBranch, CanDeleteBranch
+from .permissions import IsSuperuser, IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditTenant, CanDeleteTenant, CanViewEditBranch, CanDeleteBranch, IsSuperuserOrCEO
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -26,12 +25,12 @@ class TenantView(ModelViewSet):
         if user.is_superuser:
             return Tenant.objects.all()
         if user.role == 'ceo':
-            return Tenant.objects.filter(id=user.tenant.id) if user.tenant else Tenant.objects.none()
+            return Tenant.objects.filter(created_by=user)
         return Tenant.objects.none()
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
+            return [IsAuthenticated(), IsSuperuserOrCEO()]
         if self.action in ['retrieve', 'update', 'partial_update']:
             return [IsAuthenticated(), CanViewEditTenant()]
         if self.action == 'destroy':
@@ -51,6 +50,8 @@ class TenantView(ModelViewSet):
         serializer = self.get_serializer(data=self.request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         tenant = serializer.save(created_by=self.request.user)
+        self.request.user.tenant = tenant
+        self.request.user.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @swagger_helper("Tenant", "Update a tenant")
@@ -81,10 +82,15 @@ class BranchView(ModelViewSet):
         if user.is_superuser:
             return Branch.objects.all()
         if user.role == 'ceo':
-            return Branch.objects.filter(tenant=user.tenant) if user.tenant else Branch.objects.none()
+            # Ensure user.tenant exists before filtering
+            if user.tenant:
+                return Branch.objects.filter(tenant=user.tenant)
+            return Branch.objects.none()
         if user.role == 'Branch_manager':
-            return Branch.objects.filter(tenant=user.tenant,
-                                         id__in=user.branch.all()) if user.tenant else Branch.objects.none()
+            # Ensure user.tenant and user.branch exist before filtering
+            if user.tenant and user.branch.exists():
+                return Branch.objects.filter(tenant=user.tenant, id__in=user.branch.all())
+            return Branch.objects.none()
         return Branch.objects.none()
 
     def get_serializer_class(self):
@@ -94,7 +100,8 @@ class BranchView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), IsCEOorBranchManager(), HasActiveSubscription()]
+            # return [IsAuthenticated(), IsCEOorBranchManager(), HasActiveSubscription()]
+            return [IsAuthenticated(), IsCEOorBranchManager()]
         if self.action in ['retrieve', 'update', 'partial_update']:
             return [IsAuthenticated(), CanViewEditBranch()]
         if self.action == 'destroy':
@@ -113,6 +120,10 @@ class BranchView(ModelViewSet):
     def create(self, *args, **kwargs):
         serializer = self.get_serializer(data=self.request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
+        print(f"User creating branch: {self.request.user.email}")
+        print(f"User tenant: {self.request.user.tenant}")
+        if not self.request.user.tenant:
+            return Response({"detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."}, status=status.HTTP_400_BAD_REQUEST)
         branch = serializer.save(tenant=self.request.user.tenant)
         return Response({"data": "Branch created successfully."}, status=status.HTTP_201_CREATED)
 
