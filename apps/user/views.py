@@ -14,7 +14,8 @@ from .serializers import (
     PasswordChangeSerializer, VerifyPasswordChangeSerializer, RequestForgotPasswordSerializer,
     UserSignupSerializerVerify, UserSignupResendOTPSerializer, LogoutSerializer,
     GoogleAuthSerializer, DeleteAccountSerializer,
-    UserCreateSerializer, UserListSerializer, UserUpdateSerializer
+    UserCreateSerializer, UserListSerializer, UserUpdateSerializer, CustomRefreshTokenSerializer,
+    CustomTokenObtainPairSerializer
 )
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -613,19 +614,20 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             )
         return Response({"data": "OTP resent to your email."}, status=status.HTTP_200_OK)
 
-
 class UserLoginViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return LoginSerializer
         if self.action == 'refresh_token':
             return RefreshTokenSerializer
+        return LoginSerializer
 
     @swagger_helper("Login", "User login with email and password")
     def create(self, request, *args, **kwargs):
-        data = request.data
-        email = data.get('email')
-        password = data.get('password')
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
 
         user = User.objects.filter(email=email).first()
         if not user:
@@ -637,8 +639,10 @@ class UserLoginViewSet(viewsets.ModelViewSet):
         if not user.check_password(password):
             return Response({'message': 'Invalid password'}, status=status.HTTP_400_BAD_REQUEST)
 
-        refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
+        # Use CustomTokenObtainPairSerializer
+        token_serializer = CustomTokenObtainPairSerializer(data={'email': email, 'password': password})
+        token_serializer.is_valid(raise_exception=True)
+        tokens = token_serializer.validated_data
 
         if not is_celery_healthy():
             send_email_synchronously(
@@ -661,8 +665,9 @@ class UserLoginViewSet(viewsets.ModelViewSet):
 
         return Response({
             'message': 'Login successful.',
-            'access_token': access_token,
-            'refresh_token': str(refresh),
+            'access_token': str(tokens['access']),
+            'refresh_token': str(tokens['refresh']),
+            'user': tokens['user']
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
@@ -674,9 +679,12 @@ class UserLoginViewSet(viewsets.ModelViewSet):
             try:
                 token = RefreshToken(refresh_token)
                 token.verify()
+                # Optionally use CustomRefreshTokenSerializer for refresh token
+                user = User.objects.get(id=token['user_id'])
+                new_token = CustomRefreshTokenSerializer.get_token(user)
                 return Response({
                     'message': 'Access token generated successfully.',
-                    'access_token': str(token.access_token)
+                    'access_token': str(new_token.access_token)
                 }, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({'message': 'Invalid or expired refresh token'}, status=status.HTTP_400_BAD_REQUEST)
@@ -743,7 +751,8 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                 user.is_verified = True
                 user.save()
 
-            refresh = RefreshToken.for_user(user)
+            # Use CustomRefreshTokenSerializer to generate token
+            refresh = CustomRefreshTokenSerializer.get_token(user)
             access_token = str(refresh.access_token)
 
             if not is_celery_healthy():

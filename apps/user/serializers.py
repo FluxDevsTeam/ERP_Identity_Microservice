@@ -14,6 +14,44 @@ from django.conf import settings
 
 User = get_user_model()
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['tenant'] = str(user.tenant.id) if user.tenant else None
+        token['role'] = user.role
+        token['is_superuser'] = user.is_superuser
+        token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
+        token['email'] = user.email  # Add only email
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+        data['user'] = {
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role
+        }
+        return data
+
+
+class CustomRefreshTokenSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = RefreshToken.for_user(user)
+        token['tenant'] = str(user.tenant.id) if user.tenant else None
+        token['role'] = user.role
+        token['is_superuser'] = user.is_superuser
+        token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
+        token['email'] = user.email  # Add only email
+        return token
+
 
 # Forgot Password Serializers
 class RequestForgotPasswordSerializer(serializers.Serializer):
@@ -159,7 +197,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     branch = serializers.PrimaryKeyRelatedField(
         queryset=Branch.objects.all(), many=True, required=False
     )
-    password = serializers.CharField(write_only=True, required=False) # Changed to required=False
+    password = serializers.CharField(write_only=True, required=False)  # Changed to required=False
 
     class Meta:
         model = User
@@ -167,15 +205,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ['tenant']
 
     def validate_password(self, value):
-        if value:  # Only validate if password is provided
+        if value:
             if len(value) < 8:
                 raise serializers.ValidationError("Password must be at least 8 characters long.")
-            if not re.search(r'[A-Z]', value):
-                raise serializers.ValidationError("Password must contain at least one uppercase letter.")
-            if not re.search(r'[a-z]', value):
-                raise serializers.ValidationError("Password must contain at least one lowercase letter.")
-            if not re.search(r'[0-9]', value):
-                raise serializers.ValidationError("Password must contain at least one digit.")
         return value
 
     def validate(self, data):
@@ -218,6 +250,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
             password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=12))
         data['password'] = make_password(password)
         user = super().create(data)
+        user.is_verified = True
+        user.save()
         # Send temporary password email
         from .tasks import is_celery_healthy, send_email_synchronously, send_generic_email_task
         if not is_celery_healthy():
