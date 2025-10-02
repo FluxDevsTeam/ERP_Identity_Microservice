@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.conf import settings
 
+
 class Tenant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     STATUS_CHOICES = (
@@ -35,6 +36,7 @@ class Tenant(models.Model):
 
     def __str__(self):
         return f"tenant: {self.name}, industry: {self.industry}"
+
 
 class Branch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
