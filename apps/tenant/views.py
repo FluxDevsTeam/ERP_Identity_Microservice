@@ -8,6 +8,7 @@ from .models import Tenant, Branch
 from .utils import swagger_helper
 from .permissions import IsSuperuser, IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditTenant, CanDeleteTenant, CanViewEditBranch, CanDeleteBranch, IsSuperuserOrCEO
 from rest_framework.response import Response
+from .service import BillingService
 from rest_framework import status
 
 
@@ -124,6 +125,13 @@ class BranchView(ModelViewSet):
         print(f"User tenant: {self.request.user.tenant}")
         if not self.request.user.tenant:
             return Response({"detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."}, status=status.HTTP_400_BAD_REQUEST)
+        tenant_id = self.request.user.tenant.id
+        current_branch_count = Branch.objects.filter(tenant=self.request.user.tenant).count()
+        can_create, message = BillingService.can_create_branch(tenant_id, current_branch_count)
+
+        if not can_create:
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
         branch = serializer.save(tenant=self.request.user.tenant)
         return Response({"data": "Branch created successfully."}, status=status.HTTP_201_CREATED)
 

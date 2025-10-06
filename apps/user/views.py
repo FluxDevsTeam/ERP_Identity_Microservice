@@ -30,10 +30,10 @@ from django.utils.functional import SimpleLazyObject
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.conf import settings
-from .permissions import IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditUser, CanDeleteUser, \
-    HasActiveSubscription
+from .permissions import IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
 from apps.tenant.models import Branch, Tenant
 from apps.tenant.serializers import BranchSerializer
+from .services import BillingService
 import requests
 
 User = get_user_model()
@@ -41,7 +41,7 @@ User = get_user_model()
 
 class ForgotPasswordViewSet(viewsets.ModelViewSet):
     queryset = ForgotPasswordRequest.objects.all()
-    permission_classes = [IsCEO]  # Restrict to CEOs only
+    permission_classes = [IsCEO]
 
     def get_serializer_class(self):
         if self.action == 'request_forgot_password':
@@ -838,6 +838,13 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
     @swagger_helper("User Management", "Create a new user. Requires authentication (JWT) and CEO/Branch Manager role.")
     def create(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id
+        current_user_count = User.objects.filter(tenant=request.user.tenant).count()
+        can_create, message = BillingService.can_create_user(tenant_id, current_user_count)
+
+        if not can_create:
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
 
