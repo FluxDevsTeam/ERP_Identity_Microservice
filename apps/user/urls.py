@@ -47,6 +47,6 @@ urlpatterns = [
     path('google-auth/', GoogleAuthViewSet.as_view({'post': 'google_auth'}), name='google_auth'),
 
     # UserManagementViewSet
-    path('users/', UserManagementViewSet.as_view({'get': 'list', 'post': 'create'}), name='user_management_list_create'),
-    path('users/<int:pk>/', UserManagementViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='user_management_detail'),
+    path('management/', UserManagementViewSet.as_view({'get': 'list', 'post': 'create'}), name='user_management_list_create'),
+    path('management/<str:pk>/', UserManagementViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='user_management_detail'),
 ]

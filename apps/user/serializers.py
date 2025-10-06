@@ -46,6 +46,7 @@ class CustomRefreshTokenSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = RefreshToken.for_user(user)
         token['tenant'] = str(user.tenant.id) if user.tenant else None
+        token['tenant_name'] = str(user.tenant.name) if user.tenant else None
         token['role'] = user.role
         token['is_superuser'] = user.is_superuser
         token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
