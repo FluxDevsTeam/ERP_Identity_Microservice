@@ -125,7 +125,7 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
     'VERIFYING_KEY': None,
-    'AUDIENCE': ['billing-ms', 'finance-ms'],  # Keep finance-ms if applicable
+    'AUDIENCE': ['billing-ms', 'finance-ms', 'finance-ms'], 
     'ISSUER': 'identity-ms',
     'AUTH_HEADER_TYPES': ('JWT',),
     'USER_ID_FIELD': 'id',
@@ -170,6 +170,6 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 # microservices
 IDENTITY_MICROSERVICE_URL = os.getenv("IDENTITY_MICROSERVICE_URL")
 BILLING_MICROSERVICE_URL = os.getenv("BILLING_MICROSERVICE_URL")
-
-ERP_SUPPORT_MICROSERVICE_URL = os.getenv('ERP_SUPPORT_MICROSERVICE_URL', 'http://localhost:8088')
+FINANCE_MICROSERVICE_URL = os.getenv("FINANCE_MICROSERVICE_URL")
+ERP_SUPPORT_MICROSERVICE_URL = os.getenv('ERP_SUPPORT_MICROSERVICE_URL')
 ERP_SUPPORT_MICROSERVICE_SECRET = os.getenv('ERP_SUPPORT_MICROSERVICE_SECRET')
