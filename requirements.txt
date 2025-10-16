@@ -9,4 +9,4 @@ drf-yasg
 django-jazzmin
 celery
 requests
-google-auth==2.34.0
+google-auth
