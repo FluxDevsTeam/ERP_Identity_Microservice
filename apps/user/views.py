@@ -33,7 +33,7 @@ from django.conf import settings
 from .permissions import IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
 from apps.tenant.models import Branch, Tenant
 from apps.tenant.serializers import BranchSerializer
-from .services import BillingService
+from .service import BillingService
 import requests
 
 User = get_user_model()
