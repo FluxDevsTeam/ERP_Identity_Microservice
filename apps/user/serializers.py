@@ -26,7 +26,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['role'] = user.role
         token['is_superuser'] = user.is_superuser
         token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
-        token['email'] = user.email  # Add only email
+        token['email'] = user.email
         return token
 
     def validate(self, attrs):
