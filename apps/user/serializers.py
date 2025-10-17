@@ -17,26 +17,26 @@ User = get_user_model()
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
-
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['tenant'] = str(user.tenant.id) if user.tenant else None
-        token['role'] = user.role
-        token['is_superuser'] = user.is_superuser
-        token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
-        token['email'] = user.email
+        # Add custom claims
+        token['tenant'] = str(user.tenant.id) if hasattr(user, 'tenant') and user.tenant else None
+        token['role'] = getattr(user, 'role', None)
+        token['is_superuser'] = getattr(user, 'is_superuser', False)
+        token['branches'] = [str(branch.id) for branch in getattr(user, 'branch', [])] if hasattr(user, 'branch') and user.branch else []
+        token['email'] = getattr(user, 'email', None)
         return token
 
     def validate(self, attrs):
         data = super().validate(attrs)
         user = self.user
         data['user'] = {
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'role': user.role
+            'email': getattr(user, 'email', None),
+            'first_name': getattr(user, 'first_name', None),
+            'last_name': getattr(user, 'last_name', None),
+            'role': getattr(user, 'role', None)
         }
         return data
 
