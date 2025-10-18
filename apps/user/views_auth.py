@@ -5,15 +5,12 @@ from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from django.contrib.auth.hashers import make_password
-from .user_management_serializer import (
-    UserSignupSerializer, LoginSerializer,
-    RefreshTokenSerializer, UserSignupSerializerVerify, UserSignupResendOTPSerializer, LogoutSerializer, GoogleAuthSerializer, CustomRefreshTokenSerializer, CustomTokenObtainPairSerializer)
+from .serializers import (UserSignupSerializer, LoginSerializer, RefreshTokenSerializer, UserSignupSerializerVerify, UserSignupResendOTPSerializer, LogoutSerializer, GoogleAuthSerializer, CustomRefreshTokenSerializer, CustomTokenObtainPairSerializer)
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import swagger_helper
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .tasks import is_celery_healthy, send_email_synchronously, send_generic_email_task
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.conf import settings
@@ -22,8 +19,6 @@ from apps.role.models import Role
 import requests
 
 User = get_user_model()
-
-
 
 
 class UserSignupViewSet(viewsets.ModelViewSet):
@@ -53,26 +48,26 @@ class UserSignupViewSet(viewsets.ModelViewSet):
                 user.otp_created_at = timezone.now()
                 user.save()
 
-                if not is_celery_healthy():
-                    send_email_synchronously(
-                        user_email=email,
-                        email_type="otp",
-                        subject="Verify Your Email",
-                        action="Email Verification",
-                        message="Use the OTP below to verify your email address.",
-                        otp=otp
-                    )
-                else:
-                    send_generic_email_task.apply_async(
-                        kwargs={
-                            'user_email': email,
-                            'email_type': "otp",
-                            'subject': "Verify Your Email",
-                            'action': "Email Verification",
-                            'message': "Use the OTP below to verify your email address.",
-                            'otp': otp
-                        }
-                    )
+                # if not is_celery_healthy():
+                #     send_email_synchronously(
+                #         user_email=email,
+                #         email_type="otp",
+                #         subject="Verify Your Email",
+                #         action="Email Verification",
+                #         message="Use the OTP below to verify your email address.",
+                #         otp=otp
+                #     )
+                # else:
+                #     send_generic_email_task.apply_async(
+                #         kwargs={
+                #             'user_email': email,
+                #             'email_type': "otp",
+                #             'subject': "Verify Your Email",
+                #             'action': "Email Verification",
+                #             'message': "Use the OTP below to verify your email address.",
+                #             'otp': otp
+                #         }
+                #     )
 
                 return Response({"data": "User already exists but is not verified. OTP resent."},
                                 status=status.HTTP_200_OK)
@@ -95,26 +90,26 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             role=ceo_role
         )
 
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=email,
-                email_type="otp",
-                subject="Verify Your Email",
-                action="Email Verification",
-                message="Use the OTP below to verify your email address.",
-                otp=otp
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': email,
-                    'email_type': "otp",
-                    'subject': "Verify Your Email",
-                    'action': "Email Verification",
-                    'message': "Use the OTP below to verify your email address.",
-                    'otp': otp
-                }
-            )
+        # if not is_celery_healthy():
+        #     send_email_synchronously(
+        #         user_email=email,
+        #         email_type="otp",
+        #         subject="Verify Your Email",
+        #         action="Email Verification",
+        #         message="Use the OTP below to verify your email address.",
+        #         otp=otp
+        #     )
+        # else:
+        #     send_generic_email_task.apply_async(
+        #         kwargs={
+        #             'user_email': email,
+        #             'email_type': "otp",
+        #             'subject': "Verify Your Email",
+        #             'action': "Email Verification",
+        #             'message': "Use the OTP below to verify your email address.",
+        #             'otp': otp
+        #         }
+        #     )
 
         return Response({"data": "Signup successful. OTP sent to your email."}, status=status.HTTP_201_CREATED)
 
@@ -150,24 +145,24 @@ class UserSignupViewSet(viewsets.ModelViewSet):
         user.tenant = tenant
         user.save()
 
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=email,
-                email_type="confirmation",
-                subject="Signup Successful",
-                action="Signup",
-                message="You have finished the signup verification for KidsDesignCompany. Welcome!"
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': email,
-                    'email_type': "confirmation",
-                    'subject': "Signup Successful",
-                    'action': "Signup",
-                    'message': "You have finished the signup verification for KidsDesignCompany. Welcome!"
-                }
-            )
+        # if not is_celery_healthy():
+        #     send_email_synchronously(
+        #         user_email=email,
+        #         email_type="confirmation",
+        #         subject="Signup Successful",
+        #         action="Signup",
+        #         message="You have finished the signup verification for KidsDesignCompany. Welcome!"
+        #     )
+        # else:
+        #     send_generic_email_task.apply_async(
+        #         kwargs={
+        #             'user_email': email,
+        #             'email_type': "confirmation",
+        #             'subject': "Signup Successful",
+        #             'action': "Signup",
+        #             'message': "You have finished the signup verification for KidsDesignCompany. Welcome!"
+        #         }
+        #     )
 
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
@@ -197,26 +192,26 @@ class UserSignupViewSet(viewsets.ModelViewSet):
         user.otp_created_at = timezone.now()
         user.save()
 
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=email,
-                email_type="otp",
-                subject="Resend OTP",
-                action="Email Verification",
-                message="Use the OTP below to verify your email address.",
-                otp=otp
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': email,
-                    'email_type': "otp",
-                    'subject': "Resend OTP",
-                    'action': "Email Verification",
-                    'message': "Use the OTP below to verify your email address.",
-                    'otp': otp
-                }
-            )
+        # if not is_celery_healthy():
+        #     send_email_synchronously(
+        #         user_email=email,
+        #         email_type="otp",
+        #         subject="Resend OTP",
+        #         action="Email Verification",
+        #         message="Use the OTP below to verify your email address.",
+        #         otp=otp
+        #     )
+        # else:
+        #     send_generic_email_task.apply_async(
+        #         kwargs={
+        #             'user_email': email,
+        #             'email_type': "otp",
+        #             'subject': "Resend OTP",
+        #             'action': "Email Verification",
+        #             'message': "Use the OTP below to verify your email address.",
+        #             'otp': otp
+        #         }
+        #     )
         return Response({"data": "OTP resent to your email."}, status=status.HTTP_200_OK)
 
 
@@ -228,17 +223,20 @@ class UserLoginViewSet(viewsets.ModelViewSet):
             return RefreshTokenSerializer
         return LoginSerializer
 
-    @swagger_helper("Login", "User login with email and password")
+    @swagger_helper("Login", "User login with email/username and password")
     def create(self, request, *args, **kwargs):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
 
+        # Generate tokens using SimpleJWT
         token_serializer = CustomTokenObtainPairSerializer(
-            data={'email': user.email, 'password': request.data['password']})
+            data={'email': user.email, 'password': request.data['password']}
+        )
         token_serializer.is_valid(raise_exception=True)
         tokens = token_serializer.validated_data
 
+        """
         if not is_celery_healthy():
             send_email_synchronously(
                 user_email=user.email,
@@ -257,12 +255,20 @@ class UserLoginViewSet(viewsets.ModelViewSet):
                     'message': "You have successfully logged in to KidsDesignCompany. Welcome!"
                 }
             )
+        """
 
         return Response({
             'message': 'Login successful.',
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
-            'user': tokens['user']
+            'user': {
+                'id': str(user.id),
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role.name if user.role else None,
+                'is_ceo': user.is_ceo_role()
+            }
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
@@ -275,7 +281,7 @@ class UserLoginViewSet(viewsets.ModelViewSet):
                 token = RefreshToken(refresh_token)
                 token.verify()
                 user = User.objects.get(id=token['user_id'])
-                new_token = CustomRefreshTokenSerializer.get_token(user)
+                new_token = CustomTokenObtainPairSerializer.get_token(user)
                 return Response({
                     'message': 'Access token generated successfully.',
                     'access_token': str(new_token.access_token)
@@ -348,24 +354,24 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             refresh = CustomRefreshTokenSerializer.get_token(user)
             access_token = str(refresh.access_token)
 
-            if not is_celery_healthy():
-                send_email_synchronously(
-                    user_email=email,
-                    email_type="confirmation",
-                    subject="Login Successful",
-                    action="Google Login",
-                    message="You have successfully logged in to KidsDesignCompany using Google. Welcome!"
-                )
-            else:
-                send_generic_email_task.apply_async(
-                    kwargs={
-                        'user_email': email,
-                        'email_type': "confirmation",
-                        'subject': "Login Successful",
-                        'action': "Google Login",
-                        'message': "You have successfully logged in to KidsDesignCompany using Google. Welcome!"
-                    }
-                )
+            # if not is_celery_healthy():
+            #     send_email_synchronously(
+            #         user_email=email,
+            #         email_type="confirmation",
+            #         subject="Login Successful",
+            #         action="Google Login",
+            #         message="You have successfully logged in to KidsDesignCompany using Google. Welcome!"
+            #     )
+            # else:
+            #     send_generic_email_task.apply_async(
+            #         kwargs={
+            #             'user_email': email,
+            #             'email_type': "confirmation",
+            #             'subject': "Login Successful",
+            #             'action': "Google Login",
+            #             'message': "You have successfully logged in to KidsDesignCompany using Google. Welcome!"
+            #         }
+            #     )
 
             return Response({
                 'message': 'Google authentication successful.',

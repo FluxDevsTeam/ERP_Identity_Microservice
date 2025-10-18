@@ -10,29 +10,29 @@ class IsSuperuser(permissions.BasePermission):
 
 class IsCEO(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'ceo'
+        return request.user and request.user.is_authenticated and request.user.is_ceo_role()
 
 
 class IsManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'manager'
+        return request.user and request.user.is_authenticated and request.user.role.name == 'manager'
 
 
 class IsGeneralManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'general_manager'
+        return request.user and request.user.is_authenticated and request.user.role.name == 'general_manager'
 
 
 class IsBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'branch_manager'
+        return request.user and request.user.is_authenticated and request.user.role.name == 'branch_manager'
 
 
 class IsCEOorManagerOrGeneralManagerOrBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and (
-            request.user.is_superuser or
-            request.user.role in ['ceo', 'manager', 'general_manager', 'branch_manager']
+                request.user.is_superuser or
+                request.user.role.name in ['ceo', 'manager', 'general_manager', 'branch_manager']
         )
 
 
@@ -40,9 +40,9 @@ class CanViewEditUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if request.user.role in ['ceo', 'general_manager']:
+        if request.user.role.name in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant
-        if request.user.role in ['branch_manager', 'manager']:
+        if request.user.role.name in ['branch_manager', 'manager']:
             if request.user.tenant.branches.count() == 1:
                 return obj.tenant == request.user.tenant
             else:
@@ -56,9 +56,9 @@ class CanDeleteUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if request.user.role in ['ceo', 'general_manager']:
+        if request.user.role.name in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant
-        if request.user.role in ['branch_manager', 'manager']:
+        if request.user.role.name in ['branch_manager', 'manager']:
             if request.user.tenant.branches.count() == 1:
                 return obj.tenant == request.user.tenant
             else:
@@ -70,7 +70,7 @@ class CanDeleteUser(permissions.BasePermission):
 
 class CanCreateBranch(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role in ['ceo', 'general_manager']
+        return request.user and request.user.is_authenticated and request.user.role.name in ['ceo', 'general_manager']
 
 
 class HasActiveSubscription(permissions.BasePermission):

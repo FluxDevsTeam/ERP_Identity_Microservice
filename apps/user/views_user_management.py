@@ -2,12 +2,11 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from .user_management_serializer import UserCreateSerializer, UserListSerializer, UserUpdateSerializer
-from .user_models import User
+from .serializers_user_management import UserCreateSerializer, UserListSerializer, UserUpdateSerializer
+from .models import User
 from .utils import swagger_helper
 from .permissions import (IsCEOorManagerOrGeneralManagerOrBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
 )
-from .tasks import is_celery_healthy, send_email_synchronously, send_generic_email_task
 from .service import BillingService
 from django.conf import settings
 import requests
@@ -103,24 +102,24 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=instance.email,
-                email_type="confirmation",
-                subject="Profile Updated",
-                action="User Update",
-                message=f"Your profile has been updated by {request.user.email}."
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': instance.email,
-                    'email_type': "confirmation",
-                    'subject': "Profile Updated",
-                    'action': "User Update",
-                    'message': f"Your profile has been updated by {request.user.email}."
-                }
-            )
+        # if not is_celery_healthy():
+        #     send_email_synchronously(
+        #         user_email=instance.email,
+        #         email_type="confirmation",
+        #         subject="Profile Updated",
+        #         action="User Update",
+        #         message=f"Your profile has been updated by {request.user.email}."
+        #     )
+        # else:
+        #     send_generic_email_task.apply_async(
+        #         kwargs={
+        #             'user_email': instance.email,
+        #             'email_type': "confirmation",
+        #             'subject': "Profile Updated",
+        #             'action': "User Update",
+        #             'message': f"Your profile has been updated by {request.user.email}."
+        #         }
+        #     )
 
         return Response({"data": "User updated successfully."}, status=status.HTTP_200_OK)
 
@@ -134,23 +133,23 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         email = instance.email
         instance.delete()
 
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=email,
-                email_type="confirmation",
-                subject="Account Deleted",
-                action="User Deletion",
-                message=f"Your account has been deleted by {request.user.email}."
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': email,
-                    'email_type': "confirmation",
-                    'subject': "Account Deleted",
-                    'action': "User Deletion",
-                    'message': f"Your account has been deleted by {request.user.email}."
-                }
-            )
+        # if not is_celery_healthy():
+        #     send_email_synchronously(
+        #         user_email=email,
+        #         email_type="confirmation",
+        #         subject="Account Deleted",
+        #         action="User Deletion",
+        #         message=f"Your account has been deleted by {request.user.email}."
+        #     )
+        # else:
+        #     send_generic_email_task.apply_async(
+        #         kwargs={
+        #             'user_email': email,
+        #             'email_type': "confirmation",
+        #             'subject': "Account Deleted",
+        #             'action': "User Deletion",
+        #             'message': f"Your account has been deleted by {request.user.email}."
+        #         }
+        #     )
 
         return Response({"data": "User deleted successfully."}, status=status.HTTP_200_OK)

@@ -1,14 +1,7 @@
 from django.urls import path
-from .views import (
-    UserSignupViewSet,
-    UserLoginViewSet,
-    LogoutViewSet,
-    # UserProfileViewSet,
-    ForgotPasswordViewSet,
-    PasswordChangeRequestViewSet,
-    GoogleAuthViewSet,
-    UserManagementViewSet
-)
+from .views import ForgotPasswordViewSet, PasswordChangeRequestViewSet
+from .views_auth import UserSignupViewSet, UserLoginViewSet, GoogleAuthViewSet, LogoutViewSet
+from .views_user_management import UserManagementViewSet
 
 urlpatterns = [
     # UserSignupViewSet
@@ -22,15 +15,6 @@ urlpatterns = [
 
     # LogoutViewSet
     path('logout/', LogoutViewSet.as_view({'post': 'logout'}), name='logout'),
-
-    # UserProfileViewSet
-    # path('profile/', UserProfileViewSet.as_view({'get': 'retrieve'}), name='user_profile'),
-    # path('profile/request-email-change/', UserProfileViewSet.as_view({'post': 'request_email_change'}), name='request_email_change'),
-    # path('profile/resend-email-change-otp/', UserProfileViewSet.as_view({'post': 'resend_email_change_otp'}), name='resend_email_change_otp'),
-    # path('profile/verify-email-change/', UserProfileViewSet.as_view({'post': 'verify_email_change'}), name='verify_email_change'),
-    # path('profile/request-profile-change/', UserProfileViewSet.as_view({'post': 'request_profile_change'}), name='request_profile_change'),
-    # path('profile/verify-profile-change/', UserProfileViewSet.as_view({'post': 'verify_profile_change'}), name='verify_profile_change'),
-    # path('profile/delete-account/', UserProfileViewSet.as_view({'post': 'delete_account'}), name='delete_account'),
 
     # ForgotPasswordViewSet
     path('forgot-password/request-forgot-password/', ForgotPasswordViewSet.as_view({'post': 'request_forgot_password'}), name='forgot_password_request'),

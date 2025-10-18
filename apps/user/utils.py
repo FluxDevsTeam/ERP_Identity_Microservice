@@ -1,23 +1,10 @@
-import threading
+import hashlib
+import hmac
+import json
+import time
 from drf_yasg.utils import swagger_auto_schema
-from django.core.mail import send_mail
 from django.conf import settings
-
-
-class EmailThread(threading.Thread):
-    def __init__(self, subject, message, recipient_list):
-        self.subject = subject
-        self.message = message
-        self.recipient_list = recipient_list
-        super().__init__()
-
-    def run(self):
-        send_mail(
-            self.subject,
-            self.message,
-            settings.EMAIL_HOST_USER,
-            self.recipient_list,
-        )
+import requests
 
 
 def swagger_helper(tags, model, description=None):
@@ -74,8 +61,6 @@ def send_email_to_erp_support(user_email, email_type, subject, action, message, 
             headers=headers
         )
         response.raise_for_status()
-        logger.info(f"Email request sent successfully: {user_email}, {email_type}")
         return response.json(), response.status_code
     except requests.RequestException as e:
-        logger.error(f"Failed to send email request: {str(e)}")
         return {'error': str(e)}, 500
