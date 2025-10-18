@@ -121,8 +121,6 @@ class BranchView(ModelViewSet):
     def create(self, *args, **kwargs):
         serializer = self.get_serializer(data=self.request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
-        print(f"User creating branch: {self.request.user.email}")
-        print(f"User tenant: {self.request.user.tenant}")
         if not self.request.user.tenant:
             return Response({"detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."}, status=status.HTTP_400_BAD_REQUEST)
         tenant_id = self.request.user.tenant.id
