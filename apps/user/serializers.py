@@ -27,6 +27,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['is_superuser'] = user.is_superuser
         token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
         token['email'] = user.email
+        token['username'] = user.username  # Added: For staff identification
         return token
 
     def validate(self, attrs):
@@ -34,6 +35,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         user = self.user
         data['user'] = {
             'email': user.email,
+            'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
             'role': user.role
@@ -51,6 +53,7 @@ class CustomRefreshTokenSerializer(TokenObtainPairSerializer):
         token['is_superuser'] = user.is_superuser
         token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
         token['email'] = user.email  # Add only email
+        token['username'] = user.username  # Added: For staff
         return token
 
 
@@ -94,7 +97,7 @@ class ViewUserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'branch', 'role']
+        fields = ['id', 'first_name', 'last_name', 'email', 'username', 'phone_number', 'branch', 'role']  # Added username
 
 
 class ProfileChangeSerializer(serializers.Serializer):
@@ -123,7 +126,7 @@ class VerifyPasswordChangeSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6, required=True)
 
 
-# User Signup Serializers
+# User Signup Serializers (CEO-only, unchanged)
 class UserSignupSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=100, required=False)
     last_name = serializers.CharField(max_length=100, required=False)
@@ -147,14 +150,46 @@ class UserSignupResendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
-# Login Serializer
-class LoginSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(max_length=50, min_length=6, write_only=True)
-    email = serializers.EmailField(max_length=50, min_length=2)
+# Unified Login Serializer (Supports CEO email/password or Staff username/password + branch_id)
+class LoginSerializer(serializers.Serializer):
+    identifier = serializers.CharField(max_length=150, required=True)  # Email for CEO, username for staff
+    password = serializers.CharField(write_only=True, min_length=6, required=True)
+    branch_id = serializers.UUIDField(required=False)  # Required for staff, ignored for CEO
 
-    class Meta:
-        model = User
-        fields = ['email', 'password']
+    def validate(self, attrs):
+        identifier = attrs['identifier']
+        password = attrs['password']
+        branch_id = attrs.get('branch_id')
+
+        if '@' in identifier:  # CEO login via email
+            if branch_id is not None:
+                raise serializers.ValidationError({"branch_id": "Branch ID not required for CEO login."})
+            try:
+                user = User.objects.get(email=identifier)
+                if user.role != 'ceo':
+                    raise serializers.ValidationError("Only CEOs can log in with email.")
+                if not user.check_password(password):
+                    raise serializers.ValidationError("Invalid credentials.")
+                attrs['user'] = user
+            except User.DoesNotExist:
+                raise serializers.ValidationError("Invalid credentials.")
+        else:  # Staff login via username + branch_id
+            if not branch_id:
+                raise serializers.ValidationError({"branch_id": "Branch ID is required for staff login."})
+            try:
+                user = User.objects.filter(username=identifier, branch__id=branch_id).first()
+                if not user or user.check_password(password) is False:
+                    raise serializers.ValidationError("Invalid credentials.")
+                if user.role == 'ceo':
+                    raise serializers.ValidationError("CEOs must log in with email.")
+                attrs['user'] = user
+            except User.DoesNotExist:
+                raise serializers.ValidationError("Invalid credentials.")
+
+        if not attrs['user'].is_verified:
+            raise serializers.ValidationError("Please verify your email first.")
+
+        return attrs
 
 
 # Refresh Token Serializer
@@ -183,7 +218,7 @@ class LogoutSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid or expired refresh token")
 
 
-# Google Auth Serializer
+# Google Auth Serializer (CEO-only, unchanged)
 class GoogleAuthSerializer(serializers.Serializer):
     id_token = serializers.CharField(required=True)
 
@@ -199,10 +234,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
         queryset=Branch.objects.all(), many=True, required=False
     )
     password = serializers.CharField(write_only=True, required=False)  # Changed to required=False
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True)  # Added: For staff
 
     class Meta:
         model = User
-        fields = ['email', 'first_name', 'last_name', 'phone_number', 'role', 'branch', 'tenant', 'password']
+        fields = ['email', 'first_name', 'last_name', 'phone_number', 'role', 'branch', 'tenant', 'password', 'username']  # Added username
         read_only_fields = ['tenant']
 
     def validate_password(self, value):
@@ -226,21 +262,42 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if not tenant:
             raise serializers.ValidationError("User is not associated with a tenant.")
 
+        role = data.get('role', 'employee')
+        username = data.get('username')
+        branch_ids = [b.id for b in data.get('branch', [])]
+
         data['tenant'] = tenant
         data['created_by'] = user
         data['updated_by'] = user
 
-        branch_ids = [branch.id for branch in data.get('branch', [])]
-        if user.role == 'Branch_manager':
-            user_branches = user.branch.all()
-            for branch_id in branch_ids:
-                if not user_branches.filter(id=branch_id).exists():
-                    raise serializers.ValidationError(
-                        f"Branch Manager is not authorized to assign users to branch {branch_id}."
-                    )
-
-        if not branch_ids and user.role == 'Branch_manager':
-            raise serializers.ValidationError("Branch Manager must specify at least one branch.")
+        if role == 'ceo':
+            if username:
+                raise serializers.ValidationError("CEOs do not use usernames.")
+            data['username'] = None
+            data['branch'] = []  # CEOs are tenant-level
+            # Optional: Enforce one CEO per tenant if needed
+            if User.objects.filter(tenant=tenant, role='ceo').exists():
+                raise serializers.ValidationError("Only one CEO allowed per tenant.")
+        else:  # Staff (Branch_manager or employee)
+            if not username:
+                raise serializers.ValidationError("Username is required for staff.")
+            if not branch_ids:
+                raise serializers.ValidationError("At least one branch is required for staff.")
+            if user.role == 'Branch_manager':
+                user_branches = user.branch.all()
+                for branch_id in branch_ids:
+                    if not user_branches.filter(id=branch_id).exists():
+                        raise serializers.ValidationError(
+                            f"Branch Manager is not authorized to assign users to branch {branch_id}."
+                        )
+            # Enforce username uniqueness per selected branches
+            existing_users = User.objects.filter(
+                username=username,
+                branch__id__in=branch_ids,
+                tenant=tenant  # Within same tenant
+            ).exclude(pk=getattr(self.instance, 'pk', None))
+            if existing_users.exists():
+                raise serializers.ValidationError("Username already exists in one of the selected branches.")
 
         return data
 
@@ -282,11 +339,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     )
     password = serializers.CharField(write_only=True, required=False)
     is_active = serializers.BooleanField(required=False)
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True)  # Added
 
     class Meta:
         model = User
         fields = ['email', 'first_name', 'last_name', 'phone_number', 'role', 'branch', 'tenant', 'password',
-                  'is_active']
+                  'is_active', 'username']  # Added username
         read_only_fields = ['tenant']
 
     def validate_password(self, value):
@@ -322,4 +380,4 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'role', 'branch', 'is_verified']
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone_number', 'role', 'branch', 'is_verified']  # Added username

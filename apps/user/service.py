@@ -1,12 +1,10 @@
 import requests
 from django.conf import settings
 
+
 class BillingService:
     @staticmethod
     def fetch_subscription_details(tenant_id):
-        """
-        Fetch subscription details for a tenant from the billing microservice.
-        """
         url = f"{settings.BILLING_MICROSERVICE_URL}/api/v1/billing/access-check/"
         response = requests.get(url, params={"tenant_id": tenant_id})
 
@@ -15,11 +13,9 @@ class BillingService:
         else:
             return None
 
+
     @staticmethod
     def can_create_user(tenant_id, current_user_count):
-        """
-        Check if a new user can be created based on the subscription plan.
-        """
         subscription_details = BillingService.fetch_subscription_details(tenant_id)
         if not subscription_details or not subscription_details.get("access"):
             return False, "Access denied or subscription details unavailable."
