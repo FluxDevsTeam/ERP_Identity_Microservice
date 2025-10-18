@@ -1,4 +1,3 @@
-# apps/tenant/views.py
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter
@@ -25,17 +24,17 @@ class TenantView(ModelViewSet):
             return Tenant.objects.none()
         if user.is_superuser:
             return Tenant.objects.all()
-        if user.role == 'ceo':
+        if user.is_ceo_role():
             return Tenant.objects.filter(created_by=user)
         return Tenant.objects.none()
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]  # Only superusers or CEOs
+            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]  # No specific CanViewEditTenant, using role-based
+            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
         if self.action == 'destroy':
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]  # No specific CanDeleteTenant, using role-based
+            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
         return [IsAuthenticated()]
 
     @swagger_helper("Tenant", "List all tenants (supports search and filter)")
@@ -79,11 +78,11 @@ class BranchView(ModelViewSet):
             return Branch.objects.none()
         if user.is_superuser:
             return Branch.objects.all()
-        if user.role in ['ceo', 'general_manager']:
+        if user.role.name in ['ceo', 'general_manager']:
             if user.tenant:
                 return Branch.objects.filter(tenant=user.tenant)
             return Branch.objects.none()
-        if user.role == 'branch_manager':
+        if user.role.name == 'branch_manager':
             if user.tenant and user.branch.exists():
                 return Branch.objects.filter(tenant=user.tenant, id__in=user.branch.all())
             return Branch.objects.none()
@@ -116,7 +115,9 @@ class BranchView(ModelViewSet):
         serializer = self.get_serializer(data=self.request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         if not self.request.user.tenant:
-            return Response({"detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                                "detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."},
+                            status=status.HTTP_400_BAD_REQUEST)
         tenant_id = self.request.user.tenant.id
         current_branch_count = Branch.objects.filter(tenant=self.request.user.tenant).count()
         can_create, message = BillingService.can_create_branch(tenant_id, current_branch_count)
@@ -131,7 +132,7 @@ class BranchView(ModelViewSet):
     def partial_update(self, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=self.request.data, partial=True,
-                                        context={'request': self.request})
+                                         context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"data": "Branch updated successfully."}, status=status.HTTP_200_OK)

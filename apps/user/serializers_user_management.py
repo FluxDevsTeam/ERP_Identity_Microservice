@@ -1,4 +1,3 @@
-# apps/user/user_management_serializer.py
 import random
 import re
 from rest_framework import serializers
@@ -6,9 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from apps.tenant.models import Branch
 from apps.role.models import Role
-from .user_model import User
-from .tasks import is_celery_healthy, send_email_synchronously, send_generic_email_task
-from django.conf import settings
+User = get_user_model()
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -97,24 +94,24 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user = super().create(data)
         user.is_verified = True
         user.save()
-        if not is_celery_healthy():
-            send_email_synchronously(
-                user_email=user.email,
-                email_type="confirmation",
-                subject="Account Created",
-                action="User Creation",
-                message=f"Your account has been created for {user.tenant.name}. Your temporary password is: {password}. Please log in and change your password."
-            )
-        else:
-            send_generic_email_task.apply_async(
-                kwargs={
-                    'user_email': user.email,
-                    'email_type': "confirmation",
-                    'subject': "Account Created",
-                    'action': "User Creation",
-                    'message': f"Your account has been created for {user.tenant.name}. Your temporary password is: {password}. Please log in and change your password."
-                }
-            )
+        # if not is_celery_healthy():
+        #     send_email_synchronously(
+        #         user_email=user.email,
+        #         email_type="confirmation",
+        #         subject="Account Created",
+        #         action="User Creation",
+        #         message=f"Your account has been created for {user.tenant.name}. Your temporary password is: {password}. Please log in and change your password."
+        #     )
+        # else:
+        #     send_generic_email_task.apply_async(
+        #         kwargs={
+        #             'user_email': user.email,
+        #             'email_type': "confirmation",
+        #             'subject': "Account Created",
+        #             'action': "User Creation",
+        #             'message': f"Your account has been created for {user.tenant.name}. Your temporary password is: {password}. Please log in and change your password."
+        #         }
+        #     )
         return user
 
 
