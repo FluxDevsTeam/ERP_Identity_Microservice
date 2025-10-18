@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import TenantSerializer, BranchSerializer, ViewBranchSerializer
 from .models import Tenant, Branch
 from .utils import swagger_helper
-from .permissions import IsSuperuser, IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditTenant, CanDeleteTenant, CanViewEditBranch, CanDeleteBranch, IsSuperuserOrCEO
+from .permissions import IsSuperuser, IsCEO, IsGeneralManager, CanCreateBranch, HasActiveSubscription, IsBranchManager
 from rest_framework.response import Response
 from .service import BillingService
 from rest_framework import status
@@ -31,11 +31,11 @@ class TenantView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), IsSuperuserOrCEO()]
+            return [IsAuthenticated(), IsSuperuser() | IsCEO()]  # Only superusers or CEOs
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), CanViewEditTenant()]
+            return [IsAuthenticated(), IsSuperuser() | IsCEO()]  # No specific CanViewEditTenant, using role-based
         if self.action == 'destroy':
-            return [IsAuthenticated(), CanDeleteTenant()]
+            return [IsAuthenticated(), IsSuperuser() | IsCEO()]  # No specific CanDeleteTenant, using role-based
         return [IsAuthenticated()]
 
     @swagger_helper("Tenant", "List all tenants (supports search and filter)")
@@ -58,14 +58,11 @@ class TenantView(ModelViewSet):
     @swagger_helper("Tenant", "Update a tenant")
     def partial_update(self, *args, **kwargs):
         response = super().partial_update(*args, **kwargs)
-        instance = self.get_object()
-
         return response
 
     @swagger_helper("Tenant", "Delete a tenant")
     def destroy(self, *args, **kwargs):
         instance = self.get_object()
-        email = self.request.user.email
         response = super().destroy(*args, **kwargs)
         return response
 
@@ -82,13 +79,11 @@ class BranchView(ModelViewSet):
             return Branch.objects.none()
         if user.is_superuser:
             return Branch.objects.all()
-        if user.role == 'ceo':
-            # Ensure user.tenant exists before filtering
+        if user.role in ['ceo', 'general_manager']:
             if user.tenant:
                 return Branch.objects.filter(tenant=user.tenant)
             return Branch.objects.none()
-        if user.role == 'Branch_manager':
-            # Ensure user.tenant and user.branch exist before filtering
+        if user.role == 'branch_manager':
             if user.tenant and user.branch.exists():
                 return Branch.objects.filter(tenant=user.tenant, id__in=user.branch.all())
             return Branch.objects.none()
@@ -101,12 +96,11 @@ class BranchView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            # return [IsAuthenticated(), IsCEOorBranchManager(), HasActiveSubscription()]
-            return [IsAuthenticated(), IsCEOorBranchManager()]
+            return [IsAuthenticated(), IsCEO() | IsGeneralManager() | CanCreateBranch(), HasActiveSubscription()]
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), CanViewEditBranch()]
+            return [IsAuthenticated(), IsSuperuser() | IsCEO() | IsGeneralManager() | IsBranchManager()]
         if self.action == 'destroy':
-            return [IsAuthenticated(), CanDeleteBranch()]
+            return [IsAuthenticated(), IsSuperuser() | IsCEO() | IsGeneralManager()]
         return [IsAuthenticated()]
 
     @swagger_helper("Branch", "List all branches (supports search and filter)")
@@ -137,7 +131,7 @@ class BranchView(ModelViewSet):
     def partial_update(self, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=self.request.data, partial=True,
-                                         context={'request': self.request})
+                                        context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"data": "Branch updated successfully."}, status=status.HTTP_200_OK)
@@ -145,6 +139,5 @@ class BranchView(ModelViewSet):
     @swagger_helper("Branch", "Delete a branch")
     def destroy(self, *args, **kwargs):
         instance = self.get_object()
-        email = self.request.user.email
         instance.delete()
         return Response({"data": "Branch deleted successfully."}, status=status.HTTP_200_OK)

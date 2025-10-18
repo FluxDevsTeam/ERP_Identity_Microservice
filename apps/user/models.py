@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.validators import MinLengthValidator
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from apps.role.models import ROLE_CHOICES, Permission, ROLES_BY_INDUSTRY
 
 
 class UserManager(BaseUserManager):
@@ -42,39 +43,14 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """
-    Updated User model with dynamic roles and per-user permissions.
-    - CEO roles: Login with email/password. username=None, branch=[] (tenant-level).
-    - Staff roles: Login with username/password + branch_id. Username unique per branch.
-    Effective permissions: role.default_permissions + user_permissions (overrides).
-    Role/permissions availability checked against subscription tier and industry.
-    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    username = models.CharField(
-        max_length=150,
-        blank=True,
-        null=True,
-        validators=[MinLengthValidator(3)],
-        help_text="For staff login; unique per branch (enforced in serializer)."
-    )
+    username = models.CharField(max_length=150, blank=True, null=True, validators=[MinLengthValidator(3)], help_text="For staff login; unique per branch (enforced in serializer).")
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, blank=True)
-    role = models.ForeignKey(
-        Role,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='users',
-        help_text="Assigned role; determines default permissions. Must match tenant's industry."
-    )
-    tenant = models.ForeignKey(
-        'tenant.Tenant',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, blank=True, help_text="Assigned role; determines default permissions. Filtered by industry/tier.")
+    tenant = models.ForeignKey('tenant.Tenant', on_delete=models.SET_NULL, null=True, blank=True)
     branch = models.ManyToManyField('tenant.Branch', blank=True)
     otp = models.CharField(max_length=6, null=True, blank=True)
     otp_created_at = models.DateTimeField(null=True, blank=True)
@@ -83,20 +59,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='created_users'
-    )
-    updated_by = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='updated_users'
-    )
+    created_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_users')
+    updated_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_users')
 
     objects = UserManager()
 
@@ -104,17 +68,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['first_name', 'last_name']
 
     def clean(self):
-        # Ensure role matches tenant's industry
+        # Validate role against industry/tier (called in serializer too)
         if self.role and self.tenant and self.tenant.subscription:
-            tenant_industry = self.tenant.subscription.plan.industry
-            if self.role.industry != tenant_industry and tenant_industry != "Other":
-                raise ValidationError(
-                    f"Role '{self.role.name}' industry '{self.role.get_industry_display()}' "
-                    f"does not match tenant's industry '{tenant_industry}'."
-                )
+            industry = self.tenant.subscription.plan.industry
+            tier = self.tenant.subscription.plan.tier_level
+            available_roles = self.get_available_roles(tier)
+            if self.role not in [r[0] for r in available_roles]:
+                raise ValidationError(f"Role '{self.role}' is not available for industry '{industry}' and tier '{tier}'.")
 
     def __str__(self):
         return self.username or self.email
+
+    def is_ceo_role(self):
+        """Check if role is CEO (for login/permissions logic)."""
+        return self.role == 'ceo'
 
     def get_industry(self):
         """Get user's industry from tenant's subscription plan."""
@@ -122,17 +89,28 @@ class User(AbstractBaseUser, PermissionsMixin):
             return self.tenant.subscription.plan.industry
         return "Other"
 
+    def get_default_permissions(self):
+        """
+        Get default permissions based on role and industry.
+        Returns list of codenames.
+        """
+        industry = self.get_industry()
+        if self.role == 'ceo':
+            # CEO gets all available permissions for tier/industry
+            tier = self.tenant.subscription.plan.tier_level if self.tenant and self.tenant.subscription else 'tier1'
+            return [p.codename for p in Permission.objects.filter(industry=industry, subscription_tiers__contains=[tier])]
+        elif self.role in ROLES_BY_INDUSTRY.get(industry, {}):
+            return ROLES_BY_INDUSTRY[industry][self.role]['default_perms']
+        return []  # No defaults for invalid role
+
     def get_effective_permissions(self):
         """
         Compute effective permissions for this user, filtered by industry.
-        - Start with role defaults (industry-matched).
+        - Start with role defaults.
         - Apply grants/revokes from UserPermission (industry-matched).
         Returns list of codenames.
         """
-        if not self.role or self.role.industry != self.get_industry():
-            return []
-
-        default_codes = set(self.role.get_default_permissions_list())
+        default_codes = set(self.get_default_permissions())
 
         # Apply user-specific overrides (only those matching industry)
         user_industry = self.get_industry()
@@ -146,7 +124,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def has_permission(self, codename):
         """Check if user has a specific permission (industry-aware)."""
-        user_industry = self.get_industry()
         if codename in self.get_effective_permissions():
             return True
         # Fallback: Check Django's permission system if needed
@@ -154,17 +131,23 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_available_roles(self, subscription_tier):
         """
-        Get roles available for this tenant's tier and industry.
-        Call this during role assignment in views/serializers.
+        Get available roles (choices) for this tenant's tier and industry.
+        Includes base roles + industry-specific filtered by tier.
+        Returns list of (value, label) tuples for ChoiceField.
         """
         if self.is_superuser:
-            return Role.objects.all()
-        user_industry = self.get_industry()
-        return Role.objects.filter(
-            industry=user_industry,
-            models.Q(subscription_tiers__overlap=[subscription_tier]) |
-            models.Q(subscription_tiers__contains=[])
-        ).distinct()
+            return ROLE_CHOICES
+        industry = self.get_industry()
+        available = [('ceo', 'CEO'), ('employee', 'Employee')]  # Base always
+        if subscription_tier == 'tier1':
+            available.append(('manager', 'Manager'))
+        elif subscription_tier in ['tier2', 'tier3', 'tier4']:
+            available += [('branch_manager', 'Branch Manager'), ('general_manager', 'General Manager')]
+        industry_roles = ROLES_BY_INDUSTRY.get(industry, {})
+        for role_value, role_info in industry_roles.items():
+            if role_info['tier_req'] == 'tier1' or (subscription_tier == 'tier2' and role_info['tier_req'] in ['tier1', 'tier2']) or (subscription_tier == 'tier3' and role_info['tier_req'] in ['tier1', 'tier2', 'tier3']) or (subscription_tier == 'tier4' and role_info['tier_req'] in ['tier1', 'tier2', 'tier3', 'tier4']):
+                available.append((role_value, role_value.title().replace('_', ' ')))
+        return available
 
 
 # Existing request models (unchanged)

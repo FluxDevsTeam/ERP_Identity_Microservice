@@ -30,7 +30,9 @@ from django.utils.functional import SimpleLazyObject
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.conf import settings
-from .permissions import IsCEO, IsBranchManager, IsCEOorBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
+from .permissions import (
+    IsCEO, IsBranchManager, IsCEOorManagerOrGeneralManagerOrBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
+)
 from apps.tenant.models import Branch, Tenant
 from apps.tenant.serializers import BranchSerializer
 from .service import BillingService
@@ -262,7 +264,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
 
 
 class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsCEO]
+    permission_classes = [IsAuthenticated, IsCEOorManagerOrGeneralManagerOrBranchManager]  # Updated to allow managers/general/branch
     queryset = PasswordChangeRequest.objects.all()
 
     def get_serializer_class(self):
@@ -614,6 +616,7 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             )
         return Response({"data": "OTP resent to your email."}, status=status.HTTP_200_OK)
 
+
 class UserLoginViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
@@ -801,8 +804,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
 
 class UserManagementViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    # permission_classes = [IsAuthenticated, IsCEOorBranchManager, HasActiveSubscription]
-    permission_classes = [IsAuthenticated, IsCEOorBranchManager]
+    permission_classes = [IsAuthenticated, IsCEOorManagerOrGeneralManagerOrBranchManager, HasActiveSubscription]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
     filterset_fields = ['role', 'tenant', 'branch', 'is_verified']
@@ -820,16 +822,18 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_superuser:
             return User.objects.all()
-        if user.role == 'ceo':
+        if user.role in ['ceo', 'general_manager']:
             return User.objects.filter(tenant=user.tenant)
-        if user.role == 'Branch_manager':
-            return User.objects.filter(tenant=user.tenant, branch__in=user.branch.all())
+        if user.role in ['branch_manager', 'manager']:
+            if user.tenant.branches.count() == 1:
+                return User.objects.filter(tenant=user.tenant)
+            else:
+                return User.objects.filter(tenant=user.tenant, branch__in=user.branch.all())
         return User.objects.none()
 
     def get_permissions(self):
         if self.action in ['create', 'list']:
-            return [IsAuthenticated(), IsCEOorBranchManager()]
-            # return [IsAuthenticated(), IsCEOorBranchManager(), HasActiveSubscription()]
+            return [IsAuthenticated(), IsCEOorManagerOrGeneralManagerOrBranchManager(), HasActiveSubscription()]
         if self.action in ['retrieve', 'update', 'partial_update']:
             return [IsAuthenticated(), CanViewEditUser()]
         if self.action == 'destroy':
@@ -850,7 +854,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
         # Check branch-specific limits for Branch Managers
         branch_ids = serializer.validated_data.get('branch', [])
-        if request.user.role == 'Branch_manager' and branch_ids:
+        if request.user.role in ['branch_manager', 'manager'] and branch_ids:
             try:
                 response = requests.get(
                     f"{settings.BILLING_MICROSERVICE_URL}/access-check/limits/",

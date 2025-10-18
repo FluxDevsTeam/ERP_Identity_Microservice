@@ -1,7 +1,6 @@
 # roles/serializers.py
 from rest_framework import serializers
 from .models import Permission, Role, UserPermission
-from users.models import User  # Assuming users app has User
 from django.contrib.auth import get_user_model
 
 

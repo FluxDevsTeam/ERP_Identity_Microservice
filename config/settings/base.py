@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'api',
     'apps.tenant',
     'apps.user',
+    'apps.role',
 ]
 
 MIDDLEWARE = [
