@@ -1,6 +1,8 @@
 from django.contrib import admin
-from .models import NameChangeRequest, EmailChangeRequest, ForgotPasswordRequest, PasswordChangeRequest, User
+from .models import NameChangeRequest, EmailChangeRequest, ForgotPasswordRequest, PasswordChangeRequest
 from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin
+
+from .models_user import User
 
 admin.site.register(NameChangeRequest)
 admin.site.register(EmailChangeRequest)
