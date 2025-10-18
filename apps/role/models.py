@@ -258,7 +258,7 @@ class UserPermission(models.Model):
     Allows CEO to grant/revoke specific permissions independently of role defaults.
     Filtered by user's industry (tenant's plan.industry).
     """
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_permissions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='custom_user_permissions')
     permission = models.ForeignKey(Permission, on_delete=models.CASCADE, help_text="Must match user's industry.")
     granted = models.BooleanField(default=True, help_text="True to grant, False to revoke (override role default).")
     assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_permissions')
