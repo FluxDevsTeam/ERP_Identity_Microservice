@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.core.validators import MinLengthValidator
 from django.core.exceptions import ValidationError
 from apps.role.models import Permission, ROLES_BY_INDUSTRY, Role
+from django.contrib.auth.hashers import make_password, check_password
+from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
@@ -48,8 +50,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     username = models.CharField(
-        max_length=150, blank=True, null=True, validators=[MinLengthValidator(3)],
-        help_text="For staff login; unique per branch (enforced in serializer)."
+        max_length=150, blank=True, null=True, unique=True, validators=[MinLengthValidator(3)],
+        help_text="User login username. Optional, but if provided must be unique."
     )
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
@@ -152,3 +154,12 @@ class User(AbstractBaseUser, PermissionsMixin):
             if role.subscription_tiers and subscription_tier in role.subscription_tiers:
                 available.append((role.name, role.name.title().replace('_', ' ')))
         return available
+
+    def set_otp(self, otp):
+        self.otp = make_password(str(otp))
+        self.otp_created_at = timezone.now()
+
+    def check_otp(self, otp):
+        if not self.otp:
+            return False
+        return check_password(str(otp), self.otp)

@@ -10,6 +10,16 @@ from rest_framework_simplejwt.tokens import RefreshToken
 User = get_user_model()
 
 
+def validate_username_uniqueness(username):
+    if username:
+        try:
+            user = User.objects.get(username__iexact=username)
+            raise serializers.ValidationError("Username is already taken.")
+        except User.DoesNotExist:
+            pass
+    return username
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -123,10 +133,17 @@ class UserSignupSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
     verify_password = serializers.CharField(write_only=True, min_length=8)
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True)
+
+    def validate_username(self, value):
+        return validate_username_uniqueness(value)
 
     def validate(self, data):
         if data['password'] != data['verify_password']:
             raise serializers.ValidationError("Passwords do not match.")
+        # Validate username uniqueness (redundant with field, but double check)
+        if data.get('username'):
+            validate_username_uniqueness(data['username'])
         return data
 
 

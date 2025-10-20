@@ -25,6 +25,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Password must be at least 8 characters long.")
         return value
 
+    def validate_username(self, value):
+        if value:
+            user = User.objects.filter(username__iexact=value)
+            if user.exists():
+                raise serializers.ValidationError("Username is already taken.")
+        return value
+
     def validate(self, data):
         user = self.context['request'].user
         if not user.is_authenticated:
@@ -78,11 +85,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError(
                             f"Branch Manager is not authorized to assign users to branch {branch_id}."
                         )
-            existing_users = User.objects.filter(
-                username=username, branch__id__in=branch_ids, tenant=tenant
-            ).exclude(pk=getattr(self.instance, 'pk', None))
-            if existing_users.exists():
-                raise serializers.ValidationError("Username already exists in one of the selected branches.")
+            # Replace all per-branch username checks with global uniqueness check
+            username = data.get('username')
+            if username:
+                user = User.objects.filter(username__iexact=username)
+                if user.exists():
+                    raise serializers.ValidationError("Username is already taken.")
 
         return data
 
@@ -94,24 +102,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user = super().create(data)
         user.is_verified = True
         user.save()
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=user.email,
-        #         email_type="confirmation",
-        #         subject="Account Created",
-        #         action="User Creation",
-        #         message=f"Your account has been created for {user.tenant.name}. Your temporary password is: {password}. Please log in and change your password."
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': user.email,
-        #             'email_type': "confirmation",
-        #             'subject': "Account Created",
-        #             'action': "User Creation",
-        #             'message': f"Your account has been created for {user.tenant.name}. Your temporary password is: {password}. Please log in and change your password."
-        #         }
-        #     )
+
         return user
 
 

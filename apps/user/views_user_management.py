@@ -11,6 +11,9 @@ from .service import BillingService, send_email_via_service
 from django.conf import settings
 import requests
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from django.contrib.auth.hashers import make_password, check_password
+from rest_framework.decorators import action
 
 
 class UserManagementViewSet(viewsets.ModelViewSet):
@@ -84,6 +87,24 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                                 status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         user = serializer.save()
+        if not user.is_verified:
+            import random, datetime
+            otp = random.randint(100000, 999999)
+            user.otp = make_password(str(otp))
+            user.otp_created_at = timezone.now()
+            user.is_verified = False
+            user.save()
+            verification_url = f"{settings.FRONTEND_PATH}/verify-account/?email={user.email}"
+            send_email_via_service({
+                'user_email': user.email,
+                'email_type': 'otp',
+                'subject': 'Verify Your Email',
+                'action': 'Email Verification',
+                'message': 'Use the OTP below to verify your email address.',
+                'otp': otp,
+                'link': verification_url,
+                'link_text': 'Verify Account'
+            })
         return Response({"data": "User created successfully."}, status=status.HTTP_201_CREATED)
 
     @swagger_helper("User Management",
@@ -133,3 +154,26 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         })
 
         return Response({"data": "User deleted successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='verify-otp')
+    def verify_otp(self, request):
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        if not email or not otp:
+            return Response({'detail': 'Email and OTP are required.'}, status=400)
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response({'detail': 'User not found.'}, status=404)
+        if user.is_verified:
+            return Response({'detail': 'User already verified.'}, status=400)
+        if not user.otp or not user.otp_created_at:
+            return Response({'detail': 'No OTP set for this user.'}, status=400)
+        if (timezone.now() - user.otp_created_at).total_seconds() > 300:
+            return Response({'detail': 'OTP has expired.'}, status=400)
+        if not check_password(str(otp), user.otp):
+            return Response({'detail': 'Invalid OTP.'}, status=400)
+        user.is_verified = True
+        user.otp = None
+        user.otp_created_at = None
+        user.save()
+        return Response({'detail': 'Verification successful.'})

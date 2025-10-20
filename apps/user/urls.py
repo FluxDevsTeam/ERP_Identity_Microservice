@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import ForgotPasswordViewSet, PasswordChangeRequestViewSet
-from .views_auth import UserSignupViewSet, UserLoginViewSet, GoogleAuthViewSet, LogoutViewSet
+from .views_auth import UserSignupViewSet, UserLoginViewSet, GoogleAuthViewSet, LogoutViewSet, UsernameAvailabilityView
 from .views_user_management import UserManagementViewSet
 
 urlpatterns = [
@@ -29,6 +29,9 @@ urlpatterns = [
 
     # GoogleAuthViewSet
     path('google-auth/', GoogleAuthViewSet.as_view({'post': 'google_auth'}), name='google_auth'),
+
+    # UsernameAvailabilityView
+    path('check-username/', UsernameAvailabilityView.as_view(), name='check_username'),
 
     # UserManagementViewSet
     path('management/', UserManagementViewSet.as_view({'get': 'list', 'post': 'create'}), name='user_management_list_create'),

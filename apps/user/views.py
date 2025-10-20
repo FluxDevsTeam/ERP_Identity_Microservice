@@ -4,7 +4,7 @@ import datetime
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.exceptions import AuthenticationFailed
 from .serializers import (
     ResendOtpPasswordSerializer, VerifyOtpPasswordSerializer, SetNewPasswordSerializer,
@@ -104,7 +104,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             'otp': otp
         })
         hashed_new_password = make_password(new_password)
-        ForgotPasswordRequest.objects.create(user=user, otp=otp, new_password=hashed_new_password)
+        ForgotPasswordRequest.objects.create(user=user, otp=make_password(otp), new_password=hashed_new_password)
 
         return Response({"data": "An OTP has been sent to your email."}, status=status.HTTP_200_OK)
 
@@ -128,7 +128,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         if not forgot_password_request:
             return Response({"data": "No pending forgot password request found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if str(forgot_password_request.otp) != str(otp):
+        if check_password(otp, forgot_password_request.otp):
             return Response({"data": "Incorrect OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp_age = (timezone.now() - forgot_password_request.created_at).total_seconds()
@@ -181,7 +181,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             return Response({"data": "No pending forgot password request found."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp = random.randint(100000, 999999)
-        forgot_password_request.otp = otp
+        forgot_password_request.otp = make_password(otp)
         forgot_password_request.created_at = timezone.now()
         forgot_password_request.save()
 
@@ -252,7 +252,7 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
             'otp': otp
         })
 
-        PasswordChangeRequest.objects.create(user=user, otp=otp, new_password=hashed_new_password)
+        PasswordChangeRequest.objects.create(user=user, otp=make_password(otp), new_password=hashed_new_password)
 
         return Response({"data": "An OTP has been sent to your email."}, status=status.HTTP_200_OK)
 
@@ -266,7 +266,7 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
             return Response({"data": "No pending password change request found."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp = random.randint(100000, 999999)
-        password_change_request.otp = otp
+        password_change_request.otp = make_password(otp)
         password_change_request.created_at = timezone.now()
         password_change_request.save()
 
@@ -295,7 +295,7 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
         if not password_change_request:
             return Response({"data": "No pending password change request found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if str(password_change_request.otp) != str(otp):
+        if check_password(otp, password_change_request.otp):
             return Response({"data": "Incorrect OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp_age = (timezone.now() - password_change_request.created_at).total_seconds()
