@@ -155,6 +155,31 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
         return Response({"data": "User deleted successfully."}, status=status.HTTP_200_OK)
 
+    @swagger_helper("User Management", "Resend OTP for a user's email so they can verify their account if needed.")
+    @action(detail=True, methods=['post'], url_path='resend-otp')
+    def resend_otp(self, request, pk=None):
+        user = self.get_object()
+        if user.is_verified:
+            return Response({'detail': 'User is already verified.'}, status=400)
+        import random
+        otp = random.randint(100000, 999999)
+        user.otp = make_password(str(otp))
+        user.otp_created_at = timezone.now()
+        user.save()
+        verification_url = f"{settings.FRONTEND_PATH}/verify-account/?email={user.email}"
+        send_email_via_service({
+            'user_email': user.email,
+            'email_type': 'otp',
+            'subject': 'Resend OTP',
+            'action': 'Email Verification',
+            'message': 'Use the OTP below to verify your email address.',
+            'otp': otp,
+            'link': verification_url,
+            'link_text': 'Verify Account'
+        })
+        return Response({'detail': 'OTP resent to user email.'}, status=200)
+
+    @swagger_helper("User Management", "Verify a user's OTP using their email and OTP code.")
     @action(detail=False, methods=['post'], url_path='verify-otp')
     def verify_otp(self, request):
         email = request.data.get('email')

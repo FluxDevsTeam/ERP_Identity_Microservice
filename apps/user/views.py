@@ -316,7 +316,6 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 raise AuthenticationFailed('Refresh token is invalid or expired.')
 
-        # After successful password change - send confirmation email
         send_email_via_service({
             'user_email': user.email,
             'email_type': 'confirmation',

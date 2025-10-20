@@ -67,10 +67,6 @@ class UserSignupViewSet(viewsets.ModelViewSet):
                 return Response({"data": "User already exists and is verified."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp = random.randint(100000, 999999)
-        ceo_role, _ = Role.objects.get_or_create(
-            name='ceo', industry='Other',
-            defaults={'is_ceo_role': True, 'subscription_tiers': ['tier1', 'tier2', 'tier3', 'tier4']}
-        )
         user = User.objects.create(
             first_name=serializer.validated_data['first_name'],
             last_name=serializer.validated_data['last_name'],
@@ -78,8 +74,7 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             password=make_password(password),
             phone_number=phone_number,
             otp=make_password(otp),
-            otp_created_at=timezone.now(),
-            role=ceo_role
+            otp_created_at=timezone.now()
         )
 
         if user and not user.is_verified:
@@ -127,12 +122,12 @@ class UserSignupViewSet(viewsets.ModelViewSet):
         user.otp = None
         user.save()
 
-        tenant = Tenant.objects.create(
-            name=f"{user.first_name}'s Organization",
-            created_by=user
-        )
-        user.tenant = tenant
-        user.save()
+        # tenant = Tenant.objects.create(
+        #     name=f"{user.first_name}'s Organization",
+        #     created_by=user
+        # )
+        # user.tenant = tenant
+        # user.save()
 
         send_email_via_service({
             'user_email': email,

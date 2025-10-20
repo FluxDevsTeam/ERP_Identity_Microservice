@@ -36,4 +36,5 @@ urlpatterns = [
     # UserManagementViewSet
     path('management/', UserManagementViewSet.as_view({'get': 'list', 'post': 'create'}), name='user_management_list_create'),
     path('management/<str:pk>/', UserManagementViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='user_management_detail'),
+    path('management/<str:pk>/resend-otp/', UserManagementViewSet.as_view({'post': 'resend_otp'}), name='user_management_resend_otp'),
 ]
