@@ -1,10 +1,13 @@
 # apps/user/serializers.py
 import random
+
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User
+# from .models import User
+User = get_user_model()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -135,10 +138,6 @@ class UserSignupSerializerVerify(serializers.Serializer):
 class UserSignupResendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
-
-# apps/user/serializers.py
-from rest_framework import serializers
-from .user_model import User
 
 class LoginSerializer(serializers.Serializer):
     identifier = serializers.CharField(max_length=150, required=True)
