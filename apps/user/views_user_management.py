@@ -5,12 +5,12 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .serializers_user_management import UserCreateSerializer, UserListSerializer, UserUpdateSerializer
 from .models import User
 from .utils import swagger_helper
-from .permissions import (IsCEOorManagerOrGeneralManagerOrBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
+from .permissions import (IsCEOorManagerOrGeneralManagerOrBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription, HasNoRoleOrIsCEO, IsSuperuser
 )
 from .service import BillingService, send_email_via_service
 from django.conf import settings
 import requests
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, OR
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.decorators import action
@@ -18,7 +18,7 @@ from rest_framework.decorators import action
 
 class UserManagementViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated, IsCEOorManagerOrGeneralManagerOrBranchManager, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
     filterset_fields = ['role__name', 'tenant', 'branch', 'is_verified']
@@ -47,11 +47,11 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'list']:
-            return [IsAuthenticated(), IsCEOorManagerOrGeneralManagerOrBranchManager(), HasActiveSubscription()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), CanViewEditUser()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action == 'destroy':
-            return [IsAuthenticated(), CanDeleteUser()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         return [IsAuthenticated()]
 
     @swagger_helper("User Management", "Create a new user. Requires authentication (JWT) and CEO/Branch Manager role.")

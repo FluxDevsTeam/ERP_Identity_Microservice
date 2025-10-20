@@ -74,9 +74,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
             if User.objects.filter(tenant=tenant, role__is_ceo_role=True).exists():
                 raise serializers.ValidationError("Only one CEO allowed per tenant.")
         else:
-            if not username:
-                raise serializers.ValidationError("Username is required for staff.")
-            if not branch_ids:
+            # username is now optional for staff.
+            # Remove the requirement for username for staff below:
+            # if not username:
+            #     raise serializers.ValidationError("Username is required for staff.")
+            if branch_ids == []:
                 raise serializers.ValidationError("At least one branch is required for staff.")
             if user.role and user.role.name == 'branch_manager':
                 user_branches = user.branch.all()
@@ -85,7 +87,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError(
                             f"Branch Manager is not authorized to assign users to branch {branch_id}."
                         )
-            # Replace all per-branch username checks with global uniqueness check
             username = data.get('username')
             if username:
                 user = User.objects.filter(username__iexact=username)
@@ -97,12 +98,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, data):
         password = data.pop('password', None)
         if not password:
-            password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=12))
+            raise serializers.ValidationError("Password must be provided.")
         data['password'] = make_password(password)
         user = super().create(data)
         user.is_verified = True
         user.save()
-
         return user
 
 

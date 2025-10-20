@@ -1,11 +1,11 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, OR
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import TenantSerializer, BranchSerializer, ViewBranchSerializer
 from .models import Tenant, Branch
 from .utils import swagger_helper
-from .permissions import IsSuperuser, IsCEO, IsGeneralManager, CanCreateBranch, HasActiveSubscription, IsBranchManager
+from .permissions import IsSuperuser, IsCEO, IsGeneralManager, CanCreateBranch, HasActiveSubscription, IsBranchManager, HasNoRoleOrIsCEO
 from rest_framework.response import Response
 from .service import BillingService
 from rest_framework import status
@@ -30,11 +30,11 @@ class TenantView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action == 'destroy':
-            return [IsAuthenticated(), IsSuperuser() | IsCEO()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         return [IsAuthenticated()]
 
     @swagger_helper("Tenant", "List all tenants (supports search and filter)")
@@ -47,11 +47,33 @@ class TenantView(ModelViewSet):
 
     @swagger_helper("Tenant", "Create a tenant")
     def create(self, *args, **kwargs):
+        # Check if user already has a tenant
+        if self.request.user.tenant:
+            return Response({
+                "detail": "You already have a tenant. Each user can only create one tenant."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = self.get_serializer(data=self.request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         tenant = serializer.save(created_by=self.request.user)
+        
+        # Assign tenant to user
         self.request.user.tenant = tenant
         self.request.user.save()
+        
+        # Create CEO role for the tenant's industry and assign it to the user
+        from apps.role.models import Role
+        ceo_role, _ = Role.objects.get_or_create(
+            name='ceo',
+            industry=tenant.industry,
+            defaults={
+                'is_ceo_role': True,
+                'subscription_tiers': []
+            }
+        )
+        self.request.user.role = ceo_role
+        self.request.user.save()
+        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @swagger_helper("Tenant", "Update a tenant")
@@ -95,11 +117,11 @@ class BranchView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), IsCEO() | IsGeneralManager() | CanCreateBranch(), HasActiveSubscription()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), IsSuperuser() | IsCEO() | IsGeneralManager() | IsBranchManager()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action == 'destroy':
-            return [IsAuthenticated(), IsSuperuser() | IsCEO() | IsGeneralManager()]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         return [IsAuthenticated()]
 
     @swagger_helper("Branch", "List all branches (supports search and filter)")
