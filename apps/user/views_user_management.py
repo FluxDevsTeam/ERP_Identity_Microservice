@@ -7,7 +7,7 @@ from .models import User
 from .utils import swagger_helper
 from .permissions import (IsCEOorManagerOrGeneralManagerOrBranchManager, CanViewEditUser, CanDeleteUser, HasActiveSubscription
 )
-from .service import BillingService
+from .service import BillingService, send_email_via_service
 from django.conf import settings
 import requests
 from rest_framework.permissions import IsAuthenticated
@@ -102,24 +102,14 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=instance.email,
-        #         email_type="confirmation",
-        #         subject="Profile Updated",
-        #         action="User Update",
-        #         message=f"Your profile has been updated by {request.user.email}."
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': instance.email,
-        #             'email_type': "confirmation",
-        #             'subject': "Profile Updated",
-        #             'action': "User Update",
-        #             'message': f"Your profile has been updated by {request.user.email}."
-        #         }
-        #     )
+        # Send profile updated notification
+        send_email_via_service({
+            'user_email': instance.email,
+            'email_type': 'confirmation',
+            'subject': 'Profile Updated',
+            'action': 'User Update',
+            'message': f'Your profile has been updated by {request.user.email}.'
+        })
 
         return Response({"data": "User updated successfully."}, status=status.HTTP_200_OK)
 
@@ -133,23 +123,13 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         email = instance.email
         instance.delete()
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=email,
-        #         email_type="confirmation",
-        #         subject="Account Deleted",
-        #         action="User Deletion",
-        #         message=f"Your account has been deleted by {request.user.email}."
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': email,
-        #             'email_type': "confirmation",
-        #             'subject': "Account Deleted",
-        #             'action': "User Deletion",
-        #             'message': f"Your account has been deleted by {request.user.email}."
-        #         }
-        #     )
+        # Send account deleted notification
+        send_email_via_service({
+            'user_email': email,
+            'email_type': 'confirmation',
+            'subject': 'Account Deleted',
+            'action': 'User Deletion',
+            'message': f'Your account has been deleted by {request.user.email}.'
+        })
 
         return Response({"data": "User deleted successfully."}, status=status.HTTP_200_OK)

@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from .models_auth import PasswordChangeRequest, ForgotPasswordRequest
 from django.conf import settings
 from .permissions import IsCEO, IsCEOorManagerOrGeneralManagerOrBranchManager
+from .service import send_email_via_service
 
 User = get_user_model()
 
@@ -51,30 +52,16 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         ForgotPasswordRequest.objects.filter(user=user).delete()
         ForgotPasswordRequest.objects.create(user=user)
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=email,
-        #         email_type="reset_link",
-        #         subject="Password Reset Request",
-        #         action="Password Reset",
-        #         message="You have requested to reset your password. Click the link below to proceed. This link will expire in 10 minutes. If you did not make this request, please contact support immediately.",
-        #         link=reset_url,
-        #         link_text="Reset Password"
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': email,
-        #             'email_type': "reset_link",
-        #             'subject': "Password Reset Request",
-        #             'action': "Password Reset",
-        #             'message': "You have requested to reset your password. Click the link below to proceed. This link will expire in 10 minutes. If you did not make this request, please contact support immediately.",
-        #             'link': reset_url,
-        #             'link_text': "Reset Password"
-        #         }
-        #     )
-
-        return Response({"data": "A password reset link has been sent to your email."}, status=status.HTTP_200_OK)
+        # Send reset password link email
+        send_email_via_service({
+            'user_email': email,
+            'email_type': 'reset_link',
+            'subject': 'Password Reset Request',
+            'action': 'Password Reset',
+            'message': 'You have requested to reset your password. Click the link below to proceed. This link will expire in 10 minutes. If you did not make this request, please contact support immediately.',
+            'link': reset_url,
+            'link_text': 'Reset Password'
+        })
 
     @swagger_helper("ForgotPassword", "Set a new password")
     @action(detail=False, methods=['post'], url_path='set-new-password')
@@ -107,26 +94,15 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         ForgotPasswordRequest.objects.filter(user=user).delete()
         otp = random.randint(100000, 999999)
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=email,
-        #         email_type="otp",
-        #         subject="Forgot Password OTP",
-        #         action="Password Reset",
-        #         message="Use the OTP below to reset your password.",
-        #         otp=otp
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': email,
-        #             'email_type': "otp",
-        #             'subject': "Forgot Password OTP",
-        #             'action': "Password Reset",
-        #             'message': "Use the OTP below to reset your password.",
-        #             'otp': otp
-        #         }
-        #     )
+        # Send OTP for forgot password
+        send_email_via_service({
+            'user_email': email,
+            'email_type': 'otp',
+            'subject': 'Forgot Password OTP',
+            'action': 'Password Reset',
+            'message': 'Use the OTP below to reset your password.',
+            'otp': otp
+        })
         hashed_new_password = make_password(new_password)
         ForgotPasswordRequest.objects.create(user=user, otp=otp, new_password=hashed_new_password)
 
@@ -170,24 +146,14 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=user.email,
-        #         email_type="confirmation",
-        #         subject="Password Reset Successful",
-        #         action="Password Reset",
-        #         message="Your password has been successfully reset. You are now securely logged into your account. If you did not authorize this change, please contact support immediately."
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': user.email,
-        #             'email_type': "confirmation",
-        #             'subject': "Password Reset Successful",
-        #             'action': "Password Reset",
-        #             'message': "Your password has been successfully reset. You are now securely logged into your account. If you did not authorize this change, please contact support immediately."
-        #         }
-        #     )
+        # After successful forgot password OTP verification - send confirmation email
+        send_email_via_service({
+            'user_email': user.email,
+            'email_type': 'confirmation',
+            'subject': 'Password Reset Successful',
+            'action': 'Password Reset',
+            'message': 'Your password has been successfully reset. You are now securely logged into your account. If you did not authorize this change, please contact support immediately.'
+        })
 
         return Response({
             'message': 'Password reset successful.',
@@ -219,26 +185,15 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         forgot_password_request.created_at = timezone.now()
         forgot_password_request.save()
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=email,
-        #         email_type="otp",
-        #         subject="Forgot Password OTP - Resent",
-        #         action="Password Reset",
-        #         message="Use the OTP below to reset your password.",
-        #         otp=otp
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': email,
-        #             'email_type': "otp",
-        #             'subject': "Forgot Password OTP - Resent",
-        #             'action': "Password Reset",
-        #             'message': "Use the OTP below to reset your password.",
-        #             'otp': otp
-        #         }
-        #     )
+        # Send OTP again for forgot password
+        send_email_via_service({
+            'user_email': email,
+            'email_type': 'otp',
+            'subject': 'Forgot Password OTP - Resent',
+            'action': 'Password Reset',
+            'message': 'Use the OTP below to reset your password.',
+            'otp': otp
+        })
         # return Response({"data": "A new OTP has been sent to your email and the expiration time has been extended."},
         #                 status=status.HTTP_200_OK)
 
@@ -287,26 +242,15 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
         otp = random.randint(100000, 999999)
         hashed_new_password = make_password(new_password)
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=user.email,
-        #         email_type="otp",
-        #         subject="Password Change OTP",
-        #         action="Password Change",
-        #         message="You have requested to change your password. Use the OTP below to proceed. If you did not make this request, please contact support immediately.",
-        #         otp=otp
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': user.email,
-        #             'email_type': "otp",
-        #             'subject': "Password Change OTP",
-        #             'action': "Password Change",
-        #             'message': "You have requested to change your password. Use the OTP below to proceed. If you did not make this request, please contact support immediately.",
-        #             'otp': otp
-        #         }
-        #     )
+        # Send OTP for password change
+        send_email_via_service({
+            'user_email': user.email,
+            'email_type': 'otp',
+            'subject': 'Password Change OTP',
+            'action': 'Password Change',
+            'message': 'You have requested to change your password. Use the OTP below to proceed. If you did not make this request, please contact support immediately.',
+            'otp': otp
+        })
 
         PasswordChangeRequest.objects.create(user=user, otp=otp, new_password=hashed_new_password)
 
@@ -326,26 +270,15 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
         password_change_request.created_at = timezone.now()
         password_change_request.save()
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=user.email,
-        #         email_type="otp",
-        #         subject="Password Change OTP - Resent",
-        #         action="Password Change",
-        #         message="Use the OTP below to change your password.",
-        #         otp=otp
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': user.email,
-        #             'email_type': "otp",
-        #             'subject': "Password Change OTP - Resent",
-        #             'action': "Password Change",
-        #             'message': "Use the OTP below to change your password.",
-        #             'otp': otp
-        #         }
-        #     )
+        # Send OTP again for password change
+        send_email_via_service({
+            'user_email': user.email,
+            'email_type': 'otp',
+            'subject': 'Password Change OTP - Resent',
+            'action': 'Password Change',
+            'message': 'Use the OTP below to change your password.',
+            'otp': otp
+        })
         return Response({"data": "A new OTP has been sent to your email."}, status=status.HTTP_200_OK)
 
     @swagger_helper("ChangePassword", "Verify password change")
@@ -383,23 +316,13 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 raise AuthenticationFailed('Refresh token is invalid or expired.')
 
-        # if not is_celery_healthy():
-        #     send_email_synchronously(
-        #         user_email=user.email,
-        #         email_type="confirmation",
-        #         subject="Password Changed Successfully",
-        #         action="Password Change",
-        #         message="Your password has been successfully changed. If you did not authorize this change, please contact support immediately."
-        #     )
-        # else:
-        #     send_generic_email_task.apply_async(
-        #         kwargs={
-        #             'user_email': user.email,
-        #             'email_type': "confirmation",
-        #             'subject': "Password Changed Successfully",
-        #             'action': "Password Change",
-        #             'message': "Your password has been successfully changed. If you did not authorize this change, please contact support immediately."
-        #         }
-        #     )
+        # After successful password change - send confirmation email
+        send_email_via_service({
+            'user_email': user.email,
+            'email_type': 'confirmation',
+            'subject': 'Password Changed Successfully',
+            'action': 'Password Change',
+            'message': 'Your password has been successfully changed. If you did not authorize this change, please contact support immediately.'
+        })
 
         return Response({"data": "Password changed successfully. You have been logged out."})
