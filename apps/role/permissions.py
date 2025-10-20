@@ -13,6 +13,26 @@ class IsCEO(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.is_ceo_role()
 
 
+class HasNoRoleOrIsCEO(permissions.BasePermission):
+    """
+    Permission to allow users with no role OR users with CEO role.
+    All other roles (manager, general_manager, branch_manager, etc.) are denied.
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        # User has no role (role is None)
+        if not request.user.role:
+            return True
+        # User has CEO role
+        if request.user.is_ceo_role():
+            return True
+        # All other roles are denied
+        return False
+
+
 class IsManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.role.name == 'manager'

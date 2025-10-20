@@ -73,7 +73,7 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             email=email,
             password=make_password(password),
             phone_number=phone_number,
-            otp=make_password(otp),
+            otp=make_password(str(otp)),
             otp_created_at=timezone.now()
         )
 
@@ -161,7 +161,7 @@ class UserSignupViewSet(viewsets.ModelViewSet):
             return Response({"data": "User is already verified."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp = random.randint(100000, 999999)
-        user.set_otp(make_password(otp))
+        user.set_otp(otp)
         user.otp_created_at = timezone.now()
         user.save()
 
@@ -217,15 +217,7 @@ class UserLoginViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'Login successful.',
             'access_token': str(tokens['access']),
-            'refresh_token': str(tokens['refresh']),
-            'user': {
-                'id': str(user.id),
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'role': user.role.name if user.role else None,
-                'is_ceo': user.is_ceo_role()
-            }
+            'refresh_token': str(tokens['refresh'])
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")

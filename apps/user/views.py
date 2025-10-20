@@ -104,7 +104,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             'otp': otp
         })
         hashed_new_password = make_password(new_password)
-        ForgotPasswordRequest.objects.create(user=user, otp=make_password(otp), new_password=hashed_new_password)
+        ForgotPasswordRequest.objects.create(user=user, otp=make_password(str(otp)), new_password=hashed_new_password)
 
         return Response({"data": "An OTP has been sent to your email."}, status=status.HTTP_200_OK)
 
@@ -181,7 +181,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             return Response({"data": "No pending forgot password request found."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp = random.randint(100000, 999999)
-        forgot_password_request.otp = make_password(otp)
+        forgot_password_request.otp = make_password(str(otp))
         forgot_password_request.created_at = timezone.now()
         forgot_password_request.save()
 
@@ -252,7 +252,7 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
             'otp': otp
         })
 
-        PasswordChangeRequest.objects.create(user=user, otp=make_password(otp), new_password=hashed_new_password)
+        PasswordChangeRequest.objects.create(user=user, otp=make_password(str(otp)), new_password=hashed_new_password)
 
         return Response({"data": "An OTP has been sent to your email."}, status=status.HTTP_200_OK)
 
@@ -266,7 +266,7 @@ class PasswordChangeRequestViewSet(viewsets.ModelViewSet):
             return Response({"data": "No pending password change request found."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp = random.randint(100000, 999999)
-        password_change_request.otp = make_password(otp)
+        password_change_request.otp = make_password(str(otp))
         password_change_request.created_at = timezone.now()
         password_change_request.save()
 

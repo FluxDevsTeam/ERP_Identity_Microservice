@@ -117,7 +117,7 @@ class BranchView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create']:
-            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO()), HasActiveSubscription()]
         if self.action in ['retrieve', 'update', 'partial_update']:
             return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
         if self.action == 'destroy':

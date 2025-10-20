@@ -2,7 +2,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, OR
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import (
     PermissionSerializer, PermissionCreateSerializer,
@@ -10,13 +10,13 @@ from .serializers import (
     UserPermissionSerializer, UserPermissionCreateSerializer, UserPermissionListSerializer
 )
 from .models import Permission, Role, UserPermission
-from .permissions import IsCEO
+from .permissions import IsCEO, HasNoRoleOrIsCEO, IsSuperuser
 from django.conf import settings
 
 
 class PermissionViewSet(viewsets.ModelViewSet):
     queryset = Permission.objects.all()
-    permission_classes = [IsAuthenticated, IsCEO]
+    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['industry', 'category']
 
@@ -28,7 +28,7 @@ class PermissionViewSet(viewsets.ModelViewSet):
 
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.all()
-    permission_classes = [IsAuthenticated, IsCEO]
+    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['industry']
 
@@ -53,7 +53,7 @@ class RoleViewSet(viewsets.ModelViewSet):
 
 class UserPermissionViewSet(viewsets.ModelViewSet):
     queryset = UserPermission.objects.all()
-    permission_classes = [IsAuthenticated, IsCEO]
+    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['user', 'permission', 'granted']
 

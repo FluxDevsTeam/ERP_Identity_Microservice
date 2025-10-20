@@ -11,23 +11,19 @@ class Tenant(models.Model):
         ("Banned", "Banned")
     )
     INDUSTRY_CHOICES = (
-        ("Finance", "Finance"),
-        ("Healthcare", "Healthcare"),
-        ("Production", "Production"),
-        ("Education", "Education"),
-        ("Technology", "Technology"),
-        ("Retail", "Retail"),
-        ("Hospitality", "Hospitality"),
-        ("Agriculture", "Agriculture"),
-        ("Transport and Logistics", "Transport and Logistics"),
-        ("Real Estate", "Real Estate"),
-        ("Energy and Utilities", "Energy and Utilities"),
-        ("Media and Entertainment", "Media and Entertainment"),
-        ("Government", "Government"),
-        ("Other", "Other")
+    ("Finance", "Finance"),
+    ("Healthcare", "Healthcare"),
+    ("Production", "Production"),
+    ("Education", "Education"),
+    ("Technology", "Technology"),
+    ("Retail", "Retail"),
+    ("Agriculture", "Agriculture"),
+    ("Real Estate", "Real Estate"),
+    ("Supermarket", "Supermarket"),
+    ("Warehouse", "Warehouse"),
     )
     name = models.CharField(max_length=200)
-    industry = models.CharField(max_length=100, choices=INDUSTRY_CHOICES, default="Other")
+    industry = models.CharField(max_length=100, choices=INDUSTRY_CHOICES)
     created_by = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_tenant')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
