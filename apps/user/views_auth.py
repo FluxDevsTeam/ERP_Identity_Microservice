@@ -19,6 +19,7 @@ from apps.role.models import Role
 import requests
 from .service import send_email_via_service
 from rest_framework.views import APIView
+from .serializers import UsernameAvailabilitySerializer
 
 User = get_user_model()
 
@@ -68,11 +69,12 @@ class UserSignupViewSet(viewsets.ModelViewSet):
 
         otp = random.randint(100000, 999999)
         user = User.objects.create(
-            first_name=serializer.validated_data['first_name'],
-            last_name=serializer.validated_data['last_name'],
+            first_name=serializer.validated_data.get('first_name', ''),
+            last_name=serializer.validated_data.get('last_name', ''),
             email=email,
             password=make_password(password),
-            phone_number=phone_number,
+            phone_number=serializer.validated_data.get('phone_number', ''),
+            username=serializer.validated_data.get('username', None),
             otp=make_password(str(otp)),
             otp_created_at=timezone.now()
         )
@@ -122,12 +124,6 @@ class UserSignupViewSet(viewsets.ModelViewSet):
         user.otp = None
         user.save()
 
-        # tenant = Tenant.objects.create(
-        #     name=f"{user.first_name}'s Organization",
-        #     created_by=user
-        # )
-        # user.tenant = tenant
-        # user.save()
 
         send_email_via_service({
             'user_email': email,
@@ -349,12 +345,14 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UsernameAvailabilityView(APIView):
+class UsernameAvailabilityView(viewsets.ModelViewSet):
+    serializer_class = UsernameAvailabilitySerializer
+
     @swagger_helper("Username Availability", "Check Username Availability")
-    def post(self, request):
-        username = request.data.get('username', '').strip()
-        if not username:
-            return Response({'available': False, 'error': 'Username is required.'}, status=400)
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data['username']
         exists = User.objects.filter(username__iexact=username).exists()
         if exists:
             return Response({'available': False, 'error': 'Username is already taken.'}, status=200)

@@ -116,7 +116,9 @@ class BranchView(ModelViewSet):
         return BranchSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'create']:
+        if self.action in ['list']:
+            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
+        if self.action in ['create']:
             return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO()), HasActiveSubscription()]
         if self.action in ['retrieve', 'update', 'partial_update']:
             return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]

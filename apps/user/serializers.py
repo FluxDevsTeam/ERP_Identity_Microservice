@@ -127,12 +127,12 @@ class VerifyPasswordChangeSerializer(serializers.Serializer):
 
 
 class UserSignupSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=100, required=False)
-    last_name = serializers.CharField(max_length=100, required=False)
-    phone_number = serializers.CharField(max_length=15, required=False)
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
-    verify_password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    phone_number = serializers.CharField(max_length=15, required=False, allow_blank=True)
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=8)
+    verify_password = serializers.CharField(write_only=True, required=True, min_length=8)
     username = serializers.CharField(max_length=150, required=False, allow_blank=True)
 
     def validate_username(self, value):
@@ -221,3 +221,7 @@ class GoogleAuthSerializer(serializers.Serializer):
 
 class DeleteAccountSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, required=True)
+
+
+class UsernameAvailabilitySerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150, required=True)
