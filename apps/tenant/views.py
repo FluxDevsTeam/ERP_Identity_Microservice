@@ -117,13 +117,13 @@ class BranchView(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list']:
-            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
+            return [IsAuthenticated(), OR(IsSuperuser(), IsCEO())]
         if self.action in ['create']:
-            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO()), HasActiveSubscription()]
+            return [IsAuthenticated(), OR(IsSuperuser(), IsCEO()), CanCreateBranch()] 
         if self.action in ['retrieve', 'update', 'partial_update']:
-            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
+            return [IsAuthenticated(), OR(IsSuperuser(), IsCEO())]
         if self.action == 'destroy':
-            return [IsAuthenticated(), OR(IsSuperuser(), HasNoRoleOrIsCEO())]
+            return [IsAuthenticated(), OR(IsSuperuser(), IsCEO())]
         return [IsAuthenticated()]
 
     @swagger_helper("Branch", "List all branches (supports search and filter)")
@@ -140,14 +140,14 @@ class BranchView(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         if not self.request.user.tenant:
             return Response({
-                                "detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."},
-                            status=status.HTTP_400_BAD_REQUEST)
+                "detail": "Authenticated user must belong to an active tenant to create a branch. Please contact your administrator."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         tenant_id = self.request.user.tenant.id
-        current_branch_count = Branch.objects.filter(tenant=self.request.user.tenant).count()
-        can_create, message = BillingService.can_create_branch(tenant_id, current_branch_count)
+        can_create, message = BillingService.can_create_branch(tenant_id, request=self.request)
 
         if not can_create:
-            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": message}, status=status.HTTP_403_FORBIDDEN)
 
         branch = serializer.save(tenant=self.request.user.tenant)
         return Response({"data": "Branch created successfully."}, status=status.HTTP_201_CREATED)
@@ -156,7 +156,7 @@ class BranchView(ModelViewSet):
     def partial_update(self, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=self.request.data, partial=True,
-                                         context={'request': self.request})
+                                        context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"data": "Branch updated successfully."}, status=status.HTTP_200_OK)
