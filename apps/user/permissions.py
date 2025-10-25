@@ -3,9 +3,9 @@ from rest_framework import permissions
 import logging
 from apps.user.services import BillingService
 from apps.user.models import User
+from apps.user.models_auth import TempUser
 
 logger = logging.getLogger(__name__)
-
 
 class CanManageTempUser(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -18,26 +18,20 @@ class CanManageTempUser(permissions.BasePermission):
         if request.user.is_superuser:
             return True
         if request.user.role.name in ['ceo', 'general_manager']:
-            return obj.tenant == request.user.tenant
+            return obj.tenant == request.user.tenant  # Access all TempUsers in tenant
         if request.user.role.name in ['branch_manager', 'manager']:
-            if request.user.tenant.branches.count() == 1:
-                return obj.tenant == request.user.tenant
-            else:
-                return obj.tenant == request.user.tenant and any(
-                    branch in request.user.branch.all() for branch in obj.branch.all()
-                )
+            return obj.tenant == request.user.tenant and any(
+                branch in request.user.branch.all() for branch in obj.branch.all()
+            )  # Only TempUsers in their branch
         return False
-
 
 class IsSuperuser(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.is_superuser
 
-
 class IsCEO(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.is_ceo_role()
-
 
 class HasNoRoleOrIsCEO(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -49,66 +43,52 @@ class HasNoRoleOrIsCEO(permissions.BasePermission):
             return True
         return False
 
-
 class IsManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.role.name == 'manager'
-
 
 class IsGeneralManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.role.name == 'general_manager'
 
-
 class IsBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.role.name == 'branch_manager'
 
-
 class IsCEOorManagerOrGeneralManagerOrBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and (
-                request.user.is_superuser or
-                request.user.role.name in ['ceo', 'manager', 'general_manager', 'branch_manager']
+            request.user.is_superuser or
+            request.user.role.name in ['ceo', 'manager', 'general_manager', 'branch_manager']
         )
-
 
 class CanViewEditUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
         if request.user.role.name in ['ceo', 'general_manager']:
-            return obj.tenant == request.user.tenant
+            return obj.tenant == request.user.tenant  # Access all Users in tenant
         if request.user.role.name in ['branch_manager', 'manager']:
-            if request.user.tenant.branches.count() == 1:
-                return obj.tenant == request.user.tenant
-            else:
-                return obj.tenant == request.user.tenant and any(
-                    cell in request.user.branch.all() for cell in obj.branch.all()
-                )
+            return obj.tenant == request.user.tenant and any(
+                branch in request.user.branch.all() for branch in obj.branch.all()
+            )  # Only Users in their branch
         return False
-
 
 class CanDeleteUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
         if request.user.role.name in ['ceo', 'general_manager']:
-            return obj.tenant == request.user.tenant
+            return obj.tenant == request.user.tenant  # Delete all Users in tenant
         if request.user.role.name in ['branch_manager', 'manager']:
-            if request.user.tenant.branches.count() == 1:
-                return obj.tenant == request.user.tenant
-            else:
-                return obj.tenant == request.user.tenant and any(
-                    cell in request.user.branch.all() for cell in obj.branch.all()
-                )
+            return obj.tenant == request.user.tenant and any(
+                branch in request.user.branch.all() for branch in obj.branch.all()
+            )  # Delete only Users in their branch
         return False
-
 
 class CanCreateBranch(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.role.name in ['ceo', 'general_manager']
-
 
 class HasActiveSubscription(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -123,8 +103,8 @@ class HasActiveSubscription(permissions.BasePermission):
             logger.info(
                 f"HasActiveSubscription.has_permission: Checking for tenant_id={tenant_id}, view={view.basename}, action={view.action}")
             if view.basename == 'user_management' and view.action == 'create':
-                current_user_count = User.objects.filter(tenant__id=tenant_id).count()
-                can_create, message = BillingService.can_create_user(tenant_id, current_user_count, request=request)
+                current_user_count = User.objects.filter(tenant__id=tenant_id).count() + TempUser.objects.filter(tenant__id=tenant_id).count()
+                can_create, message = BillingService.can_create_user(tenant_id, current_user_count, request)
                 logger.info(
                     f"HasActiveSubscription.has_permission: User creation check, can_create={can_create}, message={message}")
                 return can_create
