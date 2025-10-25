@@ -22,7 +22,8 @@ def swagger_helper(tags, model):
 
 class OR(BasePermission):
     def __init__(self, *perms):
-        self.perms = perms
+        self.perms = perms  # Store instantiated permission objects (e.g., IsSuperuser(), IsCEO())
 
     def has_permission(self, request, view):
-        return any(perm().has_permission(request, view) for perm in self.perms)
+        # Use the instantiated permission objects directly
+        return any(perm.has_permission(request, view) for perm in self.perms)

@@ -7,31 +7,40 @@ from .models import Permission
 
 logger = logging.getLogger(__name__)
 
+
 class IsSuperuser(permissions.BasePermission):
     def has_permission(self, request, view):
         tenant_id = request.user.tenant.id if request.user.tenant else 'None'
-        logger.info(f"IsSuperuser: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
+        logger.info(
+            f"IsSuperuser: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
         return request.user and request.user.is_authenticated and request.user.is_superuser
+
 
 class IsCEO(permissions.BasePermission):
     def has_permission(self, request, view):
         tenant_id = request.user.tenant.id if request.user.tenant else 'None'
-        logger.info(f"IsCEO: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
+        logger.info(
+            f"IsCEO: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
         return request.user and request.user.is_authenticated and request.user.is_ceo_role()
+
 
 class IsCEOorManagerOrGeneralManagerOrBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
         tenant_id = request.user.tenant.id if request.user.tenant else 'None'
-        logger.info(f"IsCEOorManager: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
+        logger.info(
+            f"IsCEOorManager: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
         return request.user and request.user.is_authenticated and (
-            request.user.is_superuser or
-            (request.user.role and request.user.role.name in ['ceo', 'manager', 'general_manager', 'branch_manager'])
+                request.user.is_superuser or
+                (request.user.role and request.user.role.name in ['ceo', 'manager', 'general_manager',
+                                                                  'branch_manager'])
         )
+
 
 class HasActiveSubscription(permissions.BasePermission):
     def has_permission(self, request, view):
         tenant_id = request.user.tenant.id if request.user.tenant else None
-        logger.info(f"HasActiveSubscription: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
+        logger.info(
+            f"HasActiveSubscription: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
 
         # Allow list and retrieve actions without subscription check
         if view.action in ['list', 'retrieve']:
@@ -46,7 +55,8 @@ class HasActiveSubscription(permissions.BasePermission):
 
         subscription_details = BillingService.fetch_subscription_details(tenant_id, request)
         if not subscription_details or not subscription_details.get("access"):
-            logger.warning(f"HasActiveSubscription: Access denied or subscription unavailable for tenant_id={tenant_id}")
+            logger.warning(
+                f"HasActiveSubscription: Access denied or subscription unavailable for tenant_id={tenant_id}")
             return False
 
         try:
@@ -81,4 +91,3 @@ class HasActiveSubscription(permissions.BasePermission):
         except requests.RequestException as e:
             logger.error(f"HasActiveSubscription: Request failed for tenant_id={tenant_id}: {str(e)}")
             return False
-
