@@ -48,6 +48,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
     filterset_fields = ['role__name', 'tenant', 'branch', 'is_verified']
+    pagination_class = PageNumberPagination
 
     def get_permissions(self):
         if self.action == 'create':
@@ -61,30 +62,17 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager())]
 
     def get_serializer_class(self):
-        if self.action == 'create':
-            return UserCreateSerializer
-        if self.action in ['list', 'retrieve']:
-            return UserListSerializer
-        if self.action in ['update', 'partial_update']:
-            return UserUpdateSerializer
-        if self.action == 'admin_password_change':
-            return AdminPasswordChangeSerializer
-        if self.action == 'verify_admin_password_change':
-            return AdminVerifyPasswordChangeSerializer
-        if self.action == 'resend_admin_password_otp':
-            return ResendPasswordChangeOTPSerializer
-        if self.action == 'verify_otp':
-            return UserVerifySerializer
-        if self.action == 'resend_otp':
-            return UserResendOTPSerializer
         return UserListSerializer
 
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return User.objects.all()
+            return User.objects.select_related('role', 'created_by').prefetch_related('branch')
         if user.tenant:
-            return User.objects.filter(tenant=user.tenant)
+            queryset = User.objects.select_related('role', 'created_by').prefetch_related('branch').filter(tenant=user.tenant)
+            if user.role.name in ['branch_manager', 'manager']:
+                return queryset.filter(branch__in=user.branch.all()).distinct()
+            return queryset
         return User.objects.none()
 
     @swagger_helper("User Management", "Create a new user. Requires authentication (JWT) and CEO/Branch Manager/General Manager role.")
@@ -249,14 +237,14 @@ class TempUserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return TempUser.objects.all()
+            return TempUser.objects.select_related('role', 'created_by').prefetch_related('branch')
         if user.tenant:
-            return TempUser.objects.filter(tenant=user.tenant)
+            return TempUser.objects.select_related('role', 'created_by').prefetch_related('branch').filter(tenant=user.tenant)
         return TempUser.objects.none()
 
     @swagger_helper("Temp User Management", "List all pending temp users filtered by role, tenant, and branch. Supports search.")
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)  # Use default list method with pagination
+        return super().list(request, *args, **kwargs)
 
     @swagger_helper("Temp User Management", "Retrieve a single pending temp user's details.")
     def retrieve(self, request, *args, **kwargs):
@@ -278,7 +266,6 @@ class TempUserViewSet(viewsets.ModelViewSet):
         })
         return Response({"data": "Pending temp user deleted successfully."}, status=status.HTTP_200_OK)
 
-    # Disable create, update, and partial_update actions
     def create(self, request, *args, **kwargs):
         return Response({"detail": "Creating temp users is handled via UserManagementViewSet."}, status=status.HTTP_403_FORBIDDEN)
 
