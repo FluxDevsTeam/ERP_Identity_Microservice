@@ -1,9 +1,16 @@
-from django.urls import path
-from .views import ForgotPasswordViewSet, PasswordChangeRequestViewSet
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import ForgotPasswordViewSet
 from .views_auth import UserSignupViewSet, UserLoginViewSet, GoogleAuthViewSet, LogoutViewSet, UsernameAvailabilityView
-from .views_user_management import UserManagementViewSet
+from .views_user_management import UserManagementViewSet, TempUserViewSet
+
+# Router for ViewSets (auto-generates endpoints for list, create, retrieve, update, destroy, and custom actions)
+router = DefaultRouter()
+router.register('management', UserManagementViewSet, basename='management')  # UserManagementViewSet
+router.register('temp-user/management', TempUserViewSet, basename='temp_user_management')  # TempUserViewSet
 
 urlpatterns = [
+    # Non-viewset manual paths (unchanged)
     # UserSignupViewSet
     path('signup/', UserSignupViewSet.as_view({'post': 'create'}), name='user_signup'),
     path('signup/verify-otp/', UserSignupViewSet.as_view({'post': 'verify'}), name='user_signup_verify_otp'),
@@ -22,19 +29,12 @@ urlpatterns = [
     path('forgot-password/verify-otp/', ForgotPasswordViewSet.as_view({'post': 'verify_otp'}), name='forgot_password_verify_otp'),
     path('forgot-password/resend-otp/', ForgotPasswordViewSet.as_view({'post': 'resend_otp'}), name='forgot_password_resend_otp'),
 
-    # PasswordChangeRequestViewSet
-    path('password-change/request-password-change/', PasswordChangeRequestViewSet.as_view({'post': 'request_password_change'}), name='password_change_request'),
-    path('password-change/resend-otp/', PasswordChangeRequestViewSet.as_view({'post': 'resend_otp'}), name='password_change_resend_otp'),
-    path('password-change/verify-password-change/', PasswordChangeRequestViewSet.as_view({'post': 'verify_password_change'}), name='password_change_verify_otp'),
-
     # GoogleAuthViewSet
     path('google-auth/', GoogleAuthViewSet.as_view({'post': 'google_auth'}), name='google_auth'),
 
     # UsernameAvailabilityView
     path('check-username/', UsernameAvailabilityView.as_view({'post': 'create'}), name='check_username'),
 
-    # UserManagementViewSet
-    path('management/', UserManagementViewSet.as_view({'get': 'list', 'post': 'create'}), name='user_management_list_create'),
-    path('management/<str:pk>/', UserManagementViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='user_management_detail'),
-    path('management/<str:pk>/resend-otp/', UserManagementViewSet.as_view({'post': 'resend_otp'}), name='user_management_resend_otp'),
+    # ViewSets via router (auto-handles UserManagementViewSet and TempUserViewSet)
+    path('api/v1/', include(router.urls)),  # Mount at /api/v1/ for consistency
 ]
