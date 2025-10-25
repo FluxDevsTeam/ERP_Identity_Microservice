@@ -7,7 +7,6 @@ from .views_user_management import UserManagementViewSet, TempUserViewSet
 # Router for ViewSets (auto-generates endpoints for list, create, retrieve, update, destroy, and custom actions)
 router = DefaultRouter()
 router.register('management', UserManagementViewSet, basename='management')  # UserManagementViewSet
-router.register('temp-user/management', TempUserViewSet, basename='temp_user_management')  # TempUserViewSet
 
 urlpatterns = [
     # Non-viewset manual paths (unchanged)
@@ -28,6 +27,10 @@ urlpatterns = [
     path('forgot-password/set-new-password/', ForgotPasswordViewSet.as_view({'post': 'set_new_password'}), name='forgot_password_set_new_password'),
     path('forgot-password/verify-otp/', ForgotPasswordViewSet.as_view({'post': 'verify_otp'}), name='forgot_password_verify_otp'),
     path('forgot-password/resend-otp/', ForgotPasswordViewSet.as_view({'post': 'resend_otp'}), name='forgot_password_resend_otp'),
+
+    path('temp-user/management/', TempUserViewSet.as_view({'get': 'list'}), name='list_temp_users'),
+    path('temp-user/management/<uuid:pk>/', TempUserViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}), name='temp_user_detail'),
+
 
     # GoogleAuthViewSet
     path('google-auth/', GoogleAuthViewSet.as_view({'post': 'google_auth'}), name='google_auth'),

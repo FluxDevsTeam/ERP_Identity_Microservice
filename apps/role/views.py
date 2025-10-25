@@ -1,88 +1,250 @@
-# roles/views.py
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, OR
-from django_filters.rest_framework import DjangoFilterBackend
-from .serializers import (
-    PermissionSerializer, PermissionCreateSerializer,
-    RoleSerializer, RoleCreateSerializer,
-    UserPermissionSerializer, UserPermissionCreateSerializer, UserPermissionListSerializer
-)
-from .models import Permission, Role, UserPermission
-from .permissions import IsCEO, HasNoRoleOrIsCEO, IsSuperuser
-from django.conf import settings
+from .models import Role, Permission, UserPermission
+from .serializers import RoleSerializer, PermissionSerializer, UserPermissionSerializer
+from .permissions import IsCEO, IsSuperuser, HasActiveSubscription
+from rest_framework.permissions import OR, IsAuthenticated
+from django.contrib.auth import get_user_model
+from .utils import swagger_helper
+import logging
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class PermissionViewSet(viewsets.ModelViewSet):
     queryset = Permission.objects.all()
-    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['industry', 'category']
+    serializer_class = PermissionSerializer
 
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return PermissionCreateSerializer
-        return PermissionSerializer
+    def get_permissions(self):
+        # Only superusers can manage permissions; CEOs can only list/retrieve
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated(), OR(IsSuperuser, IsCEO)]
+        return [IsAuthenticated(), IsSuperuser, HasActiveSubscription]
+
+    def get_queryset(self):
+        user = self.request.user
+        tenant_id = user.tenant.id if user.tenant else 'None'
+        if user.is_superuser:
+            logger.info(
+                f"PermissionViewSet: Superuser accessing all permissions, user={user.email}, tenant_id={tenant_id}")
+            return Permission.objects.all()
+        if user.tenant and user.tenant.subscription and user.tenant.subscription.plan:
+            industry = user.tenant.subscription.plan.industry
+            logger.info(
+                f"PermissionViewSet: Filtering permissions for user={user.email}, tenant_id={tenant_id}, industry={industry}")
+            return Permission.objects.filter(industry__in=[industry, 'Other'])
+        logger.warning(
+            f"PermissionViewSet: No valid tenant or subscription for user={user.email}, tenant_id={tenant_id}")
+        return Permission.objects.none()
+
+    @swagger_helper(tags="Permissions", model="Permission")
+    def list(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(f"PermissionViewSet: Listing permissions for user={request.user.email}, tenant_id={tenant_id}")
+        return super().list(request, *args, **kwargs)
+
+    @swagger_helper(tags="Permissions", model="Permission")
+    def retrieve(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"PermissionViewSet: Retrieving permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_helper(tags="Permissions", model="Permission")
+    def create(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(f"PermissionViewSet: Creating permission for user={request.user.email}, tenant_id={tenant_id}")
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        logger.info(
+            f"PermissionViewSet: Permission created successfully, id={serializer.data['id']}, user={request.user.email}, tenant_id={tenant_id}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @swagger_helper(tags="Permissions", model="Permission")
+    def update(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"PermissionViewSet: Updating permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().update(request, *args, **kwargs)
+
+    @swagger_helper(tags="Permissions", model="Permission")
+    def partial_update(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"PermissionViewSet: Partially updating permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_helper(tags="Permissions", model="Permission")
+    def destroy(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"PermissionViewSet: Deleting permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        permission = self.get_object()
+        if permission.default_roles.exists() or permission.userpermission_set.exists():
+            logger.warning(
+                f"PermissionViewSet: Cannot delete permission id={permission.id} as it is assigned, user={request.user.email}, tenant_id={tenant_id}")
+            return Response(
+                {"error": "Cannot delete permission because it is assigned to roles or users."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.all()
-    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['industry']
+    serializer_class = RoleSerializer
 
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return RoleCreateSerializer
-        return RoleSerializer
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated(), OR(IsSuperuser, IsCEO)]
+        return [IsAuthenticated(), OR(IsSuperuser, IsCEO), HasActiveSubscription]
 
     def get_queryset(self):
         user = self.request.user
+        tenant_id = user.tenant.id if user.tenant else 'None'
         if user.is_superuser:
+            logger.info(f"RoleViewSet: Superuser accessing all roles, user={user.email}, tenant_id={tenant_id}")
             return Role.objects.all()
-        if user.tenant and user.tenant.subscription:
-            tier = user.tenant.subscription.plan.tier_level
+        if user.tenant and user.tenant.subscription and user.tenant.subscription.plan:
             industry = user.tenant.subscription.plan.industry
-            return Role.objects.filter(
-                industry=industry,
-                subscription_tiers__overlap=[tier]
-            )
+            logger.info(
+                f"RoleViewSet: Filtering roles for user={user.email}, tenant_id={tenant_id}, industry={industry}")
+            return Role.objects.filter(industry__in=[industry, 'Other'])
+        logger.warning(f"RoleViewSet: No valid tenant or subscription for user={user.email}, tenant_id={tenant_id}")
         return Role.objects.none()
+
+    @swagger_helper(tags="Roles", model="Role")
+    def list(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(f"RoleViewSet: Listing roles for user={request.user.email}, tenant_id={tenant_id}")
+        return super().list(request, *args, **kwargs)
+
+    @swagger_helper(tags="Roles", model="Role")
+    def retrieve(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"RoleViewSet: Retrieving role id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_helper(tags="Roles", model="Role")
+    def create(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(f"RoleViewSet: Creating role for user={request.user.email}, tenant_id={tenant_id}")
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        logger.info(
+            f"RoleViewSet: Role created successfully, id={serializer.data['id']}, user={request.user.email}, tenant_id={tenant_id}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @swagger_helper(tags="Roles", model="Role")
+    def update(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"RoleViewSet: Updating role id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().update(request, *args, **kwargs)
+
+    @swagger_helper(tags="Roles", model="Role")
+    def partial_update(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"RoleViewSet: Partially updating role id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_helper(tags="Roles", model="Role")
+    def destroy(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"RoleViewSet: Deleting role id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        role = self.get_object()
+        if User.objects.filter(role=role).exists():
+            logger.warning(
+                f"RoleViewSet: Cannot delete role id={role.id} as it is assigned to users, user={request.user.email}, tenant_id={tenant_id}")
+            return Response(
+                {"error": "Cannot delete role because it is assigned to one or more users."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class UserPermissionViewSet(viewsets.ModelViewSet):
     queryset = UserPermission.objects.all()
-    permission_classes = [IsAuthenticated, OR(IsSuperuser(), HasNoRoleOrIsCEO())]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['user', 'permission', 'granted']
+    serializer_class = UserPermissionSerializer
 
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return UserPermissionCreateSerializer
-        if self.action == 'list':
-            return UserPermissionListSerializer
-        return UserPermissionSerializer
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated(), OR(IsSuperuser, IsCEO)]
+        return [IsAuthenticated(), OR(IsSuperuser, IsCEO), HasActiveSubscription]
 
     def get_queryset(self):
         user = self.request.user
+        tenant_id = user.tenant.id if user.tenant else 'None'
         if user.is_superuser:
+            logger.info(
+                f"UserPermissionViewSet: Superuser accessing all permissions, user={user.email}, tenant_id={tenant_id}")
             return UserPermission.objects.all()
         if user.tenant:
-            return UserPermission.objects.filter(
-                user__tenant=user.tenant
-            )
+            logger.info(f"UserPermissionViewSet: Filtering permissions for user={user.email}, tenant_id={tenant_id}")
+            return UserPermission.objects.filter(user__tenant=user.tenant)
+        logger.warning(f"UserPermissionViewSet: No tenant associated for user={user.email}, tenant_id={tenant_id}")
         return UserPermission.objects.none()
 
-    @action(detail=False, methods=['get'], url_path='user/(?P<user_id>[^/.]+)')
-    def for_user(self, request, user_id=None):
-        """Get all user permissions for a specific user."""
+    @swagger_helper(tags="User Permissions", model="User Permission")
+    def list(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(f"UserPermissionViewSet: Listing permissions for user={request.user.email}, tenant_id={tenant_id}")
+        return super().list(request, *args, **kwargs)
+
+    @swagger_helper(tags="User Permissions", model="User Permission")
+    def retrieve(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"UserPermissionViewSet: Retrieving permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_helper(tags="User Permissions", model="User Permission")
+    def create(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(f"UserPermissionViewSet: Creating permission for user={request.user.email}, tenant_id={tenant_id}")
+        user_id = request.data.get('user_id')
+        if not user_id:
+            logger.warning(
+                f"UserPermissionViewSet: user_id is required, user={request.user.email}, tenant_id={tenant_id}")
+            return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            user = settings.AUTH_USER_MODEL.objects.get(id=user_id)
-            if user.tenant != request.user.tenant:
-                return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-            queryset = UserPermission.objects.filter(user=user)
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
-        except settings.AUTH_USER_MODEL.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            logger.warning(
+                f"UserPermissionViewSet: User not found, user_id={user_id}, user={request.user.email}, tenant_id={tenant_id}")
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        logger.info(
+            f"UserPermissionViewSet: Permission created for user_id={user_id}, user={request.user.email}, tenant_id={tenant_id}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @swagger_helper(tags="User Permissions", model="User Permission")
+    def update(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"UserPermissionViewSet: Updating permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().update(request, *args, **kwargs)
+
+    @swagger_helper(tags="User Permissions", model="User Permission")
+    def partial_update(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"UserPermissionViewSet: Partially updating permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_helper(tags="User Permissions", model="User Permission")
+    def destroy(self, request, *args, **kwargs):
+        tenant_id = request.user.tenant.id if request.user.tenant else 'None'
+        logger.info(
+            f"UserPermissionViewSet: Deleting permission id={kwargs.get('pk')} for user={request.user.email}, tenant_id={tenant_id}")
+        return super().destroy(request, *args, **kwargs)

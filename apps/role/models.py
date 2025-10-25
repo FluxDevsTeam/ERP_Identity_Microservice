@@ -1,15 +1,9 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.conf import settings
-from django.core.validators import MinLengthValidator
-from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 
-
-# Tier choices for consistency across models (e.g., used in Permission.subscription_tiers)
-# Values like ['tier1', 'tier2'] in JSONField should match these.
-# Named to reflect organizational scale: higher tiers for larger organizations.
 TIER_CHOICES = (
     ('tier1', 'Tier 1 - Small Business (1-10 users, 1 branch)'),
     ('tier2', 'Tier 2 - Medium Business (11-50 users, 2-5 branches)'),
@@ -17,8 +11,6 @@ TIER_CHOICES = (
     ('tier4', 'Tier 4 - Global Corporation (201+ users, 21+ branches)'),
 )
 
-
-# Industry choices (shared across models) - limited to specified + supermarket/warehouse
 INDUSTRY_CHOICES = (
     ("Finance", "Finance"),
     ("Healthcare", "Healthcare"),
@@ -32,46 +24,32 @@ INDUSTRY_CHOICES = (
     ("Warehouse", "Warehouse"),
 )
 
-
-# Fixed role choices (all possible across industries; filtered dynamically by industry/tier in serializers/views)
 ROLE_CHOICES = (
-    ('ceo', 'CEO'),  # Always available, no industry/tier limit
-    ('branch_manager', 'Branch Manager'),  # tier2+, for multi-branch (more than 1 branch)
-    ('general_manager', 'General Manager'),  # tier2+, for multi-branch oversight
-    ('manager', 'Manager'),  # tier1 only, single-branch or basic management
-    ('employee', 'Employee'),  # Base role, all tiers
-    # Education-specific
+    ('ceo', 'CEO'),
+    ('branch_manager', 'Branch Manager'),
+    ('general_manager', 'General Manager'),
+    ('manager', 'Manager'),
+    ('employee', 'Employee'),
     ('teacher', 'Teacher'),
     ('student_admin', 'Student Admin'),
-    # Production-specific
     ('production_manager', 'Production Manager'),
     ('quality_control', 'Quality Control'),
-    # Finance-specific
     ('accountant', 'Accountant'),
     ('auditor', 'Auditor'),
-    # Healthcare-specific
     ('doctor', 'Doctor'),
     ('nurse', 'Nurse'),
-    # Sales/Generic (e.g., for Retail, Finance, etc.)
-    ('sales_rep', 'Sales Representative'),  # Basic sales role, tier1+
-    ('sales_manager', 'Sales Manager'),  # Advanced sales oversight, tier2+
-    # Supermarket-specific (under Retail-like operations)
+    ('sales_rep', 'Sales Representative'),
+    ('sales_manager', 'Sales Manager'),
     ('cashier', 'Cashier'),
     ('shelf_stocker', 'Shelf Stocker'),
-    # Warehouse-specific
     ('forklift_operator', 'Forklift Operator'),
     ('inventory_clerk', 'Inventory Clerk'),
-    # Combined Supermarket/Warehouse roles (e.g., for integrated operations)
     ('supply_chain_coordinator', 'Supply Chain Coordinator'),
     ('warehouse_supervisor', 'Warehouse Supervisor'),
-    # Other generic roles
     ('admin', 'Admin'),
     ('support', 'Support Staff'),
 )
 
-
-# Role definitions: Maps role -> {'tier_req': str, 'default_perms': list of codenames}
-# Filtered by industry in get_available_roles(); extended for specified industries + supermarket/warehouse/combined
 ROLES_BY_INDUSTRY = {
     'Finance': {
         'accountant': {'tier_req': 'tier1', 'default_perms': ['finance.basic_income_expense']},
@@ -161,18 +139,35 @@ ROLES_BY_INDUSTRY = {
 
 
 class Permission(models.Model):
-    """
-    Custom permission model for granular access control.
-    Examples: 'education.student_record', 'production.products_record',
-              'finance.basic_income_expense', 'healthcare.patient_access'.
-    Tied to subscription tiers and industries via fields.
-    """
-    codename = models.CharField(max_length=100, unique=True, help_text="Unique codename for the permission, e.g., 'education.student_record'")
-    name = models.CharField(max_length=100, help_text="Human-readable name, e.g., 'Student Record Access'")
-    description = models.TextField(blank=True, help_text="Detailed description of what this permission allows.")
-    subscription_tiers = models.JSONField(default=list, blank=True, help_text="List of tiers this permission is available in, e.g., ['tier1', 'tier2', 'tier3'] (must match TIER_CHOICES values)")
-    industry = models.CharField(max_length=50, choices=INDUSTRY_CHOICES, default="Other", help_text="Industry this permission applies to, e.g., 'Education', 'Production'")
-    category = models.CharField(max_length=50, blank=True, help_text="Group permissions, e.g., 'accounting', 'inventory', 'users'")
+    codename = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Unique codename for the permission, e.g., 'education.student_record'",
+    )
+    name = models.CharField(
+        max_length=100,
+        help_text="Human-readable name, e.g., 'Student Record Access'",
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Detailed description of what this permission allows.",
+    )
+    subscription_tiers = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of tiers this permission is available in, e.g., ['tier1', 'tier2', 'tier3']",
+    )
+    industry = models.CharField(
+        max_length=50,
+        choices=INDUSTRY_CHOICES,
+        default="Other",
+        help_text="Industry this permission applies to, e.g., 'Education'",
+    )
+    category = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Group permissions, e.g., 'accounting', 'inventory', 'users'",
+    )
 
     class Meta:
         verbose_name = "Permission"
@@ -180,63 +175,55 @@ class Permission(models.Model):
         ordering = ['industry', 'category', 'name']
 
     def clean(self):
-        # Validate subscription_tiers contains only valid choices
-        valid_tiers = [choice[0] for choice in TIER_CHOICES]
-        for tier in self.subscription_tiers:
-            if tier not in valid_tiers:
-                raise ValidationError(f"Invalid tier '{tier}' in subscription_tiers. Must be one of: {valid_tiers}")
-
-    def __str__(self):
-        return f"{self.name} ({self.codename}) - {self.get_industry_display()}"
-
-
-class Role(models.Model):
-    """
-    Dynamic roles with default permissions, industry-specific.
-    Available roles depend on subscription tier and industry.
-    E.g., 'Teacher' role (industry='Education') with 'education.student_record' permission.
-    'Production Manager' role (industry='Production') with 'production.products_record' permission.
-    """
-    name = models.CharField(max_length=50, unique=False)  # Not unique globally; unique per industry
-    description = models.TextField(blank=True)
-    default_permissions = models.ManyToManyField(
-        Permission,
-        related_name='default_roles',
-        blank=True,
-        help_text="Default set of permissions granted to users with this role."
-    )
-    is_ceo_role = models.BooleanField(
-        default=False,
-        help_text="Special flag for CEO-like roles (email login, tenant-wide access)."
-    )
-    subscription_tiers = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Tiers this role is available in, e.g., ['tier1', 'tier2'] "
-                  "(must match TIER_CHOICES values)"
-    )
-    industry = models.CharField(
-        max_length=50,
-        choices=INDUSTRY_CHOICES,
-        default="Other",
-        help_text="Industry this role applies to, e.g., 'Education' for 'Teacher'"
-    )
-
-    class Meta:
-        unique_together = ('name', 'industry')  # Unique per industry
-        verbose_name = "Role"
-        verbose_name_plural = "Roles"
-        ordering = ['industry', 'name']
-
-    def clean(self):
-        # Validate subscription_tiers contains only valid choices
         valid_tiers = [choice[0] for choice in TIER_CHOICES]
         for tier in self.subscription_tiers:
             if tier not in valid_tiers:
                 raise ValidationError(
                     f"Invalid tier '{tier}' in subscription_tiers. Must be one of: {valid_tiers}"
                 )
-        # Ensure default permissions match industry
+
+    def __str__(self):
+        return f"{self.name} ({self.codename}) - {self.get_industry_display()}"
+
+
+class Role(models.Model):
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    description = models.TextField(blank=True)
+    default_permissions = models.ManyToManyField(
+        Permission,
+        related_name='default_roles',
+        blank=True,
+        help_text="Default set of permissions granted to users with this role.",
+    )
+    is_ceo_role = models.BooleanField(
+        default=False,
+        help_text="Special flag for CEO-like roles (email login, tenant-wide access).",
+    )
+    subscription_tiers = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Tiers this role is available in, e.g., ['tier1', 'tier2']",
+    )
+    industry = models.CharField(
+        max_length=50,
+        choices=INDUSTRY_CHOICES,
+        default="Other",
+        help_text="Industry this role applies to, e.g., 'Education' for 'Teacher'",
+    )
+
+    class Meta:
+        unique_together = ('name', 'industry')
+        verbose_name = "Role"
+        verbose_name_plural = "Roles"
+        ordering = ['industry', 'name']
+
+    def clean(self):
+        valid_tiers = [choice[0] for choice in TIER_CHOICES]
+        for tier in self.subscription_tiers:
+            if tier not in valid_tiers:
+                raise ValidationError(
+                    f"Invalid tier '{tier}' in subscription_tiers. Must be one of: {valid_tiers}"
+                )
         for perm in self.default_permissions.all():
             if perm.industry != self.industry and self.industry != "Other":
                 raise ValidationError(
@@ -248,36 +235,54 @@ class Role(models.Model):
         return f"{self.name} ({self.get_industry_display()})"
 
     def get_default_permissions_list(self):
-        """Return list of codenames for default permissions."""
-        return list(self.default_permissions.values_list('codename', flat=True))
+        cache_key = f"role_permissions_{self.id}"
+        cached_perms = cache.get(cache_key)
+        if cached_perms is not None:
+            return cached_perms
+        perms = list(self.default_permissions.values_list('codename', flat=True))
+        cache.set(cache_key, perms, timeout=300)  # Cache for 5 minutes
+        return perms
 
 
 class UserPermission(models.Model):
-    """
-    Per-user permission overrides.
-    Allows CEO to grant/revoke specific permissions independently of role defaults.
-    Filtered by user's industry (tenant's plan.industry).
-    """
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='custom_user_permissions')
-    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, help_text="Must match user's industry.")
-    granted = models.BooleanField(default=True, help_text="True to grant, False to revoke (override role default).")
-    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_permissions')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='custom_user_permissions',
+    )
+    permission = models.ForeignKey(
+        Permission,
+        on_delete=models.CASCADE,
+        help_text="Must match user's industry.",
+    )
+    granted = models.BooleanField(
+        default=True,
+        help_text="True to grant, False to revoke (override role default).",
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_permissions',
+    )
     assigned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'permission')  # One assignment per user-permission
+        unique_together = ('user', 'permission')
         verbose_name = "User Permission"
         verbose_name_plural = "User Permissions"
         ordering = ['-assigned_at']
 
     def clean(self):
-        # Ensure permission matches user's industry
         if self.user.tenant and self.user.tenant.subscription:
             user_industry = self.user.tenant.subscription.plan.industry
             if self.permission.industry != user_industry and user_industry != "Other":
-                raise ValidationError(f"Permission '{self.permission.name}' industry '{self.permission.get_industry_display()}' does not match user's industry '{user_industry}'.")
+                raise ValidationError(
+                    f"Permission '{self.permission.name}' industry '{self.permission.get_industry_display()}' "
+                    f"does not match user's industry '{user_industry}'."
+                )
 
     def __str__(self):
         status = "Granted" if self.granted else "Revoked"
         return f"{self.user} - {self.permission.name} ({status})"
-
