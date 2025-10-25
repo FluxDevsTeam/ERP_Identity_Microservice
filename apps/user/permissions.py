@@ -1,6 +1,32 @@
-from rest_framework import permissions
 import requests
-from django.conf import settings
+from rest_framework import permissions
+import logging
+from apps.user.services import BillingService
+from apps.user.models import User
+
+logger = logging.getLogger(__name__)
+
+
+class CanManageTempUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and (
+            request.user.is_superuser or
+            request.user.role.name in ['ceo', 'general_manager', 'branch_manager', 'manager']
+        )
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser:
+            return True
+        if request.user.role.name in ['ceo', 'general_manager']:
+            return obj.tenant == request.user.tenant
+        if request.user.role.name in ['branch_manager', 'manager']:
+            if request.user.tenant.branches.count() == 1:
+                return obj.tenant == request.user.tenant
+            else:
+                return obj.tenant == request.user.tenant and any(
+                    branch in request.user.branch.all() for branch in obj.branch.all()
+                )
+        return False
 
 
 class IsSuperuser(permissions.BasePermission):
@@ -14,22 +40,13 @@ class IsCEO(permissions.BasePermission):
 
 
 class HasNoRoleOrIsCEO(permissions.BasePermission):
-    """
-    Permission to allow users with no role OR users with CEO role.
-    All other roles (manager, general_manager, branch_manager, etc.) are denied.
-    """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         if request.user.is_superuser:
             return True
-        # User has no role (role is None)
-        if not request.user.role:
+        if not request.user.role or request.user.is_ceo_role():
             return True
-        # User has CEO role
-        if request.user.is_ceo_role():
-            return True
-        # All other roles are denied
         return False
 
 
@@ -96,22 +113,26 @@ class CanCreateBranch(permissions.BasePermission):
 class HasActiveSubscription(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.user.is_superuser:
+            logger.info("HasActiveSubscription.has_permission: Superuser bypass, returning True")
             return True
         tenant_id = request.user.tenant.id if request.user.tenant else None
         if not tenant_id:
+            logger.warning("HasActiveSubscription.has_permission: No tenant_id, returning False")
             return False
         try:
-            response = requests.get(
-                f"{settings.BILLING_MICROSERVICE_URL}/access-check/limits/",
-                headers={"Authorization": request.META.get('HTTP_AUTHORIZATION')}
-            )
-            if response.status_code != 200:
-                return False
-            data = response.json()
-            if view.basename == 'branch':
-                return data.get('branches_allowed', False)
-            if view.basename == 'user_management':
-                return data.get('users_allowed', False)
-            return data.get('access', False)
-        except requests.RequestException:
+            logger.info(
+                f"HasActiveSubscription.has_permission: Checking for tenant_id={tenant_id}, view={view.basename}, action={view.action}")
+            if view.basename == 'user_management' and view.action == 'create':
+                current_user_count = User.objects.filter(tenant__id=tenant_id).count()
+                can_create, message = BillingService.can_create_user(tenant_id, current_user_count, request=request)
+                logger.info(
+                    f"HasActiveSubscription.has_permission: User creation check, can_create={can_create}, message={message}")
+                return can_create
+            subscription_details = BillingService.fetch_subscription_details(tenant_id, request)
+            result = subscription_details.get('access', False) if subscription_details else False
+            logger.info(
+                f"HasActiveSubscription.has_permission: view={view.basename}, action={view.action}, access={result}")
+            return result
+        except requests.RequestException as e:
+            logger.error(f"HasActiveSubscription.has_permission: Request failed for tenant_id={tenant_id}: {str(e)}")
             return False
