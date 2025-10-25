@@ -1,31 +1,14 @@
-# roles/serializers.py
 from rest_framework import serializers
-from .models import Permission, Role, UserPermission
+from .models import Role, Permission, UserPermission
+from .service import BillingService
 from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission
         fields = ['id', 'codename', 'name', 'description', 'subscription_tiers', 'industry', 'category']
-
-
-class PermissionCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Permission
-        fields = ['codename', 'name', 'description', 'subscription_tiers', 'industry', 'category']
-
-    def validate(self, data):
-        # Ensure subscription_tiers are valid
-        from .models import TIER_CHOICES
-        valid_tiers = [choice[0] for choice in TIER_CHOICES]
-        for tier in data.get('subscription_tiers', []):
-            if tier not in valid_tiers:
-                raise serializers.ValidationError(
-                    f"Invalid tier '{tier}'. Must be one of: {valid_tiers}"
-                )
-        return data
-
 
 class RoleSerializer(serializers.ModelSerializer):
     default_permissions = PermissionSerializer(many=True, read_only=True)
@@ -34,87 +17,69 @@ class RoleSerializer(serializers.ModelSerializer):
         model = Role
         fields = ['id', 'name', 'description', 'is_ceo_role', 'subscription_tiers', 'industry', 'default_permissions']
 
-
-class RoleCreateSerializer(serializers.ModelSerializer):
-    default_permissions = serializers.PrimaryKeyRelatedField(
-        queryset=Permission.objects.all(), many=True, required=False
-    )
-
-    class Meta:
-        model = Role
-        fields = ['name', 'description', 'is_ceo_role', 'subscription_tiers', 'industry', 'default_permissions']
-
     def validate(self, data):
-        # Ensure subscription_tiers are valid
-        from .models import TIER_CHOICES
-        valid_tiers = [choice[0] for choice in TIER_CHOICES]
-        for tier in data.get('subscription_tiers', []):
-            if tier not in valid_tiers:
-                raise serializers.ValidationError(
-                    f"Invalid tier '{tier}'. Must be one of: {valid_tiers}"
-                )
-        # Validate default_permissions match industry
-        industry = data.get('industry')
-        for perm in data.get('default_permissions', []):
-            if perm.industry != industry and industry != "Other":
-                raise serializers.ValidationError(
-                    f"Permission '{perm.name}' industry '{perm.industry}' does not match role industry '{industry}'."
-                )
+        request = self.context.get('request')
+        if not request.user.is_authenticated:
+            raise serializers.ValidationError("User must be authenticated.")
+
+        # Allow superusers to bypass tenant checks
+        if request.user.is_superuser:
+            return data
+
+        tenant = request.user.tenant
+        if not tenant:
+            raise serializers.ValidationError("User must be associated with a tenant.")
+
+        subscription = tenant.subscription
+        if not subscription or not subscription.plan:
+            raise serializers.ValidationError("Tenant must have an active subscription plan.")
+
+        role_name = data.get('name')
+        industry = data.get('industry', 'Other')
+        subscription_tier = subscription.plan.tier_level
+
+        can_assign, message = BillingService.can_assign_role(
+            tenant.id, role_name, industry, subscription_tier, request
+        )
+        if not can_assign:
+            raise serializers.ValidationError({"role": message})
+
         return data
-
-    def create(self, data):
-        default_permissions = data.pop('default_permissions', [])
-        role = Role.objects.create(**data)
-        if default_permissions:
-            role.default_permissions.set(default_permissions)
-        return role
-
 
 class UserPermissionSerializer(serializers.ModelSerializer):
-    permission = PermissionSerializer(read_only=True)
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    user_id = serializers.UUIDField(source='user.id')
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    permission = serializers.SlugRelatedField(slug_field='codename', queryset=Permission.objects.all())
+    assigned_by_email = serializers.EmailField(source='assigned_by.email', read_only=True)
 
     class Meta:
         model = UserPermission
-        fields = ['id', 'user', 'permission', 'granted', 'assigned_by', 'assigned_at']
-
-
-class UserPermissionCreateSerializer(serializers.ModelSerializer):
-    permission = serializers.PrimaryKeyRelatedField(queryset=Permission.objects.all())
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-
-    class Meta:
-        model = UserPermission
-        fields = ['user', 'permission', 'granted']
+        fields = ['id', 'user_id', 'user_email', 'permission', 'granted', 'assigned_by_email', 'assigned_at']
 
     def validate(self, data):
-        request = self.context['request']
-        user = request.user
-        permission = data['permission']
-        selected_user = data['user']
-        # Ensure only managing own tenant users
-        if selected_user.tenant != user.tenant:
+        request = self.context.get('request')
+        tenant_id = request.user.tenant.id if request.user and request.user.tenant else None
+        if not tenant_id:
+            raise serializers.ValidationError("User must be associated with a tenant.")
+
+        try:
+            user = User.objects.get(id=data['user']['id'])
+        except KeyError:
+            raise serializers.ValidationError("user_id is required.")
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User does not exist.")
+
+        if user.tenant_id != tenant_id:
             raise serializers.ValidationError("Cannot assign permissions to users outside your tenant.")
-        # Ensure permission matches industry
-        if selected_user.tenant and selected_user.tenant.subscription:
-            user_industry = selected_user.tenant.subscription.plan.industry
-            if permission.industry != user_industry and user_industry != "Other":
-                raise serializers.ValidationError(
-                    f"Permission '{permission.name}' does not match user's industry '{user_industry}'."
-                )
-        data['assigned_by'] = user
+
+        permission_codename = data['permission'].codename
+        can_assign, message = BillingService.can_assign_permission(tenant_id, permission_codename, request)
+        if not can_assign:
+            raise serializers.ValidationError({"permission": message})
+
         return data
 
-    def create(self, data):
-        assigned_by = data.pop('assigned_by')
-        return UserPermission.objects.create(assigned_by=assigned_by, **data)
-
-
-class UserPermissionListSerializer(serializers.ModelSerializer):
-    permission = PermissionSerializer(read_only=True)
-    user = serializers.StringRelatedField(read_only=True)  # Username or email
-    assigned_by = serializers.StringRelatedField(read_only=True)
-
-    class Meta:
-        model = UserPermission
-        fields = ['id', 'user', 'permission', 'granted', 'assigned_by', 'assigned_at']
+    def create(self, validated_data):
+        user = User.objects.get(id=validated_data['user']['id'])
+        validated_data['assigned_by'] = self.context['request'].user
+        return UserPermission.objects.create(user=user, **validated_data)
