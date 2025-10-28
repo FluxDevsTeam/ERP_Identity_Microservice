@@ -39,5 +39,5 @@ urlpatterns = [
     path('check-username/', UsernameAvailabilityView.as_view({'post': 'create'}), name='check_username'),
 
     # ViewSets via router (auto-handles UserManagementViewSet and TempUserViewSet)
-    path('api/v1/', include(router.urls)),  # Mount at /api/v1/ for consistency
+    path('', include(router.urls)),
 ]
