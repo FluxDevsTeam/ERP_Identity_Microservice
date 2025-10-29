@@ -32,12 +32,9 @@ urlpatterns = [
     path('temp-user/management/<uuid:pk>/', TempUserViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}), name='temp_user_detail'),
 
 
-    # GoogleAuthViewSet
     path('google-auth/', GoogleAuthViewSet.as_view({'post': 'google_auth'}), name='google_auth'),
 
-    # UsernameAvailabilityView
     path('check-username/', UsernameAvailabilityView.as_view({'post': 'create'}), name='check_username'),
 
-    # ViewSets via router (auto-handles UserManagementViewSet and TempUserViewSet)
     path('', include(router.urls)),
 ]
