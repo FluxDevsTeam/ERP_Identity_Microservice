@@ -305,6 +305,11 @@ class GoogleAuthSerializer(serializers.Serializer):
     id_token = serializers.CharField(required=True)
 
 
+class SetGoogleAuthPasswordSerializer(serializers.Serializer):
+    id_token = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=8)
+
+
 class DeleteAccountSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, required=True)
 

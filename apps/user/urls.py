@@ -33,6 +33,7 @@ urlpatterns = [
 
 
     path('google-auth/', GoogleAuthViewSet.as_view({'post': 'google_auth'}), name='google_auth'),
+    path('google-auth/set-google-auth-password/', GoogleAuthViewSet.as_view({'post': 'set_google_auth_password'}), name='set_google_auth_password'),
 
     path('check-username/', UsernameAvailabilityView.as_view({'post': 'create'}), name='check_username'),
 
