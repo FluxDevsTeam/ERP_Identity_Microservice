@@ -494,10 +494,21 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             'action': 'Password Reset',
             'message': 'Your password has been successfully reset. You are now securely logged into your account.'
         })
+
+        has_tenant = bool(user.tenant)
+        complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+        if not has_tenant and not complete_onboarding:
+            onboarding = "stage1"
+        elif has_tenant != complete_onboarding:
+            onboarding = "stage2"
+        else:
+            onboarding = "stage3"
+
         return Response({
             'message': 'Password reset successful.',
             'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh)
+            'refresh_token': str(refresh),
+            'onboarding': onboarding
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("ForgotPassword", "Resend OTP for password reset")
