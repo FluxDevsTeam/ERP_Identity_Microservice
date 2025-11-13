@@ -94,7 +94,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.username or self.email
 
     def is_ceo_role(self):
-        return self.role and self.role.is_ceo_role
+        return bool(self.role and getattr(self.role, "is_ceo_role", False))
 
     def get_industry(self):
         if self.tenant and self.tenant.subscription:
