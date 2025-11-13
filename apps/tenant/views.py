@@ -1,6 +1,7 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, OR
 from rest_framework.filters import SearchFilter
+from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import TenantSerializer, BranchSerializer, ViewBranchSerializer
 from .models import Tenant, Branch
@@ -17,6 +18,17 @@ class TenantView(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['name']
     filterset_fields = ['id', 'name', 'created_at']
+
+    @swagger_helper("Tenant", "Check if a tenant name is available globally")
+    @action(detail=False, methods=["post"], url_path="check-tenant-name")
+    def check_tenant_name(self, request):
+        name = (request.data.get("name") or "").strip()
+        if not name:
+            return Response({"available": False, "error": "Tenant name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        exists = Tenant.objects.filter(name__iexact=name).exists()
+        if exists:
+            return Response({"available": False, "error": "Tenant name is already taken."}, status=status.HTTP_200_OK)
+        return Response({"available": True}, status=status.HTTP_200_OK)
 
     def get_queryset(self):
         user = self.request.user
@@ -93,6 +105,17 @@ class BranchView(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['name']
     filterset_fields = ['id', 'name', 'tenant', 'created_at']
+
+    @swagger_helper("Branch", "Check if a branch name is available globally")
+    @action(detail=False, methods=["post"], url_path="check-branch-name")
+    def check_branch_name(self, request):
+        name = (request.data.get("name") or "").strip()
+        if not name:
+            return Response({"available": False, "error": "Branch name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        exists = Branch.objects.filter(name__iexact=name).exists()
+        if exists:
+            return Response({"available": False, "error": "Branch name is already taken."}, status=status.HTTP_200_OK)
+        return Response({"available": True}, status=status.HTTP_200_OK)
 
     def get_queryset(self):
         user = self.request.user
