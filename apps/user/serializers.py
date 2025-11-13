@@ -212,10 +212,21 @@ class UserSignupSerializerVerify(serializers.Serializer):
             'message': 'You have finished the signup verification. Welcome!'
         })
         refresh = RefreshToken.for_user(user)
+
+        has_tenant = bool(user.tenant)
+        complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+        if not has_tenant and not complete_onboarding:
+            onboarding = "stage1"
+        elif has_tenant != complete_onboarding:
+            onboarding = "stage2"
+        else:
+            onboarding = "stage3"
+
         return {
             'message': 'Signup successful.',
             'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh)
+            'refresh_token': str(refresh),
+            'onboarding': onboarding
         }
 
 

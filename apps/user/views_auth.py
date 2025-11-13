@@ -99,13 +99,18 @@ class UserLoginViewSet(viewsets.ModelViewSet):
 
         has_tenant = bool(user.tenant)
         complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+        if not has_tenant and not complete_onboarding:
+            onboarding = "stage1"
+        elif has_tenant != complete_onboarding:
+            onboarding = "stage2"
+        else:
+            onboarding = "stage3"
 
         return Response({
             'message': 'Login successful.',
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
-            'has_tenant': has_tenant,
-            'complete_onboarding': complete_onboarding
+            'onboarding': onboarding
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
@@ -215,14 +220,19 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
 
                     has_tenant = bool(user.tenant)
                     complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+                    if not has_tenant and not complete_onboarding:
+                        onboarding = "stage1"
+                    elif has_tenant != complete_onboarding:
+                        onboarding = "stage2"
+                    else:
+                        onboarding = "stage3"
 
                     return Response({
                         'message': 'Google authentication successful.',
                         'access_token': access_token,
                         'refresh_token': str(refresh),
                         'is_new_user': False,
-                        'has_tenant': has_tenant,
-                        'complete_onboarding': complete_onboarding,
+                        'onboarding': onboarding,
                         'user': {
                             'email': user.email,
                             'first_name': user.first_name,
@@ -324,13 +334,18 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
 
             has_tenant = bool(user.tenant)
             complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+            if not has_tenant and not complete_onboarding:
+                onboarding = "stage1"
+            elif has_tenant != complete_onboarding:
+                onboarding = "stage2"
+            else:
+                onboarding = "stage3"
 
             return Response({
                 'message': 'Account setup successful.',
                 'access_token': access_token,
                 'refresh_token': str(refresh),
-                'has_tenant': has_tenant,
-                'complete_onboarding': complete_onboarding,
+                'onboarding': onboarding,
                 'user': {
                     'email': user.email,
                     'first_name': user.first_name,
