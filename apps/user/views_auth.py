@@ -98,7 +98,7 @@ class UserLoginViewSet(viewsets.ModelViewSet):
         tokens = token_serializer.validated_data
 
         has_tenant = bool(user.tenant)
-        complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
         if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
         elif has_tenant != complete_onboarding:
@@ -219,7 +219,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                     })
 
                     has_tenant = bool(user.tenant)
-                    complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+                    complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
                     if not has_tenant and not complete_onboarding:
                         onboarding = "stage1"
                     elif has_tenant != complete_onboarding:
@@ -333,7 +333,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             })
 
             has_tenant = bool(user.tenant)
-            complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+            complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
             if not has_tenant and not complete_onboarding:
                 onboarding = "stage1"
             elif has_tenant != complete_onboarding:
@@ -496,7 +496,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         })
 
         has_tenant = bool(user.tenant)
-        complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
         if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
         elif has_tenant != complete_onboarding:

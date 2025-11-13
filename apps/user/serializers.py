@@ -214,7 +214,7 @@ class UserSignupSerializerVerify(serializers.Serializer):
         refresh = RefreshToken.for_user(user)
 
         has_tenant = bool(user.tenant)
-        complete_onboarding = bool(user.is_ceo_role() and not user.branch.exists())
+        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
         if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
         elif has_tenant != complete_onboarding:
