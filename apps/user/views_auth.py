@@ -110,7 +110,8 @@ class UserLoginViewSet(viewsets.ModelViewSet):
             'message': 'Login successful.',
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
-            'onboarding': onboarding
+            'onboarding': onboarding,
+            'is_superuser': user.is_superuser
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
@@ -233,6 +234,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                         'refresh_token': str(refresh),
                         'is_new_user': False,
                         'onboarding': onboarding,
+                        'is_superuser': user.is_superuser,
                         'user': {
                             'email': user.email,
                             'first_name': user.first_name,
@@ -346,6 +348,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                 'access_token': access_token,
                 'refresh_token': str(refresh),
                 'onboarding': onboarding,
+                'is_superuser': user.is_superuser,
                 'user': {
                     'email': user.email,
                     'first_name': user.first_name,
@@ -508,7 +511,8 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             'message': 'Password reset successful.',
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
-            'onboarding': onboarding
+            'onboarding': onboarding,
+            'is_superuser': user.is_superuser
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("ForgotPassword", "Resend OTP for password reset")

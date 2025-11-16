@@ -226,7 +226,8 @@ class UserSignupSerializerVerify(serializers.Serializer):
             'message': 'Signup successful.',
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
-            'onboarding': onboarding
+            'onboarding': onboarding,
+            'is_superuser': user.is_superuser
         }
 
 
