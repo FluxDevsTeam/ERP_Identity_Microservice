@@ -31,9 +31,9 @@ urlpatterns = [
     path('temp-user/management/', TempUserViewSet.as_view({'get': 'list'}), name='list_temp_users'),
     path('temp-user/management/<uuid:pk>/', TempUserViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}), name='temp_user_detail'),
 
-    # UserManagementViewSet custom actions
-    path('management/verify-otp/', UserManagementViewSet.as_view({'post': 'verify_otp'}), name='verify_otp'),
-    path('management/resend-otp/', UserManagementViewSet.as_view({'post': 'resend_otp'}), name='resend_otp'),
+    # TempUserViewSet custom actions
+    path('temp-user/verify-otp/', TempUserViewSet.as_view({'post': 'verify_otp'}), name='verify_otp'),
+    path('temp-user/resend-otp/', TempUserViewSet.as_view({'post': 'resend_otp'}), name='resend_otp'),
     path('management/<uuid:pk>/admin-password-change/', UserManagementViewSet.as_view({'post': 'admin_password_change'}), name='admin_password_change'),
     path('management/<uuid:pk>/verify-admin-password-change/', UserManagementViewSet.as_view({'post': 'verify_admin_password_change'}), name='verify_admin_password_change'),
     path('management/<uuid:pk>/resend-admin-password-otp/', UserManagementViewSet.as_view({'post': 'resend_admin_password_otp'}), name='resend_admin_password_otp'),

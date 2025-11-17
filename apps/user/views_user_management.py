@@ -57,8 +57,6 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager()), CanViewEditUser()]
         if self.action == 'destroy':
             return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager()), CanDeleteUser()]
-        if self.action in ['verify_otp', 'resend_otp']:
-            return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager())]
         return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager())]
 
     def get_serializer_class(self):
@@ -123,24 +121,6 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         })
         return Response({"data": "User deleted successfully."}, status=status.HTTP_200_OK)
 
-    @swagger_helper("User Management", "Verify a user's OTP for email verification.")
-    @action(detail=False, methods=['post'], url_path='verify-otp')
-    def verify_otp(self, request):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response({
-            "data": "Verification successful.",
-            "user": UserListSerializer(user).data
-        }, status=status.HTTP_200_OK)
-
-    @swagger_helper("User Management", "Resend OTP for a user's email verification.")
-    @action(detail=False, methods=['post'], url_path='resend-otp')
-    def resend_otp(self, request):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        result = serializer.save()
-        return Response({"data": result['message']}, status=status.HTTP_200_OK)
 
     @swagger_helper("User Management", "Request password change for a user.")
     @action(detail=True, methods=['post'], url_path='admin-password-change')
@@ -234,6 +214,13 @@ class TempUserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager()), CanManageTempUser(), HasActiveSubscription()]
 
+    def get_serializer_class(self):
+        if self.action == 'verify_otp':
+            return UserVerifySerializer
+        if self.action == 'resend_otp':
+            return UserResendOTPSerializer
+        return TempUserSerializer
+
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
@@ -265,6 +252,25 @@ class TempUserViewSet(viewsets.ModelViewSet):
             'message': f'Your pending registration has been canceled by {request.user.email}.'
         })
         return Response({"data": "Pending temp user deleted successfully."}, status=status.HTTP_200_OK)
+
+    @swagger_helper("Temp User Management", "Verify a user's OTP for email verification.")
+    @action(detail=False, methods=['post'], url_path='verify-otp')
+    def verify_otp(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+            "data": "Verification successful.",
+            "user": UserListSerializer(user).data
+        }, status=status.HTTP_200_OK)
+
+    @swagger_helper("Temp User Management", "Resend OTP for a user's email verification.")
+    @action(detail=False, methods=['post'], url_path='resend-otp')
+    def resend_otp(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        return Response({"data": result['message']}, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         return Response({"detail": "Creating temp users is handled via UserManagementViewSet."}, status=status.HTTP_403_FORBIDDEN)
