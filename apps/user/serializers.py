@@ -226,7 +226,7 @@ class UserSignupSerializerVerify(serializers.Serializer):
             onboarding = "stage3"
 
         elif has_tenant and is_ceo and not has_branch:
-            has_subscription = bool(user.has_subscription())
+            has_subscription = bool(user.has_subscription(self.context.get('request')))
             if has_subscription:
                 onboarding = "stage3"
             else:
