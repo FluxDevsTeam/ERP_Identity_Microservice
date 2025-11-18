@@ -214,23 +214,25 @@ class UserSignupSerializerVerify(serializers.Serializer):
         refresh = RefreshToken.for_user(user)
 
         has_tenant = bool(user.tenant)
-        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
-        if not has_tenant and not complete_onboarding:
+        is_ceo = bool(user.is_ceo_role())
+        has_branch = bool(user.branch.exists())
+        if not has_tenant and not is_ceo:
             onboarding = "stage1"
-        elif has_tenant != complete_onboarding:
-            # Check if user has tenant but is not CEO
-            if has_tenant and not user.is_ceo_role():
-                onboarding = "stage4"
+
+        elif has_tenant and not is_ceo:
+            onboarding = "stage3"
+
+        elif has_tenant and is_ceo and has_branch:
+            onboarding = "stage3"
+
+        elif has_tenant and is_ceo and not has_branch:
+            has_subscription = bool(user.has_subscription())
+            if has_subscription:
+                onboarding = "stage3"
             else:
-                # Check billing microservice for subscription to determine if stage2 is completed
-                has_subscription = bool(user.has_subscription())
-                if has_subscription and user.is_ceo_role():
-                    onboarding = "stage3"
-                else:
-                    onboarding = "stage2"
+                onboarding = "stage2"
         else:
-            # All conditions met, previously stage3, now stage4
-            onboarding = "stage4"
+            onboarding = "stage3"
 
         return {
             'message': 'Signup successful.',
