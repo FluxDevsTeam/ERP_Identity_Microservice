@@ -214,23 +214,15 @@ class UserSignupSerializerVerify(serializers.Serializer):
         refresh = RefreshToken.for_user(user)
 
         has_tenant = bool(user.tenant)
-        is_ceo = bool(user.is_ceo_role())
-        has_branch = bool(user.branch.exists())
-        has_subscription = bool(user.has_subscription(self.context.get('request'))) if has_tenant else False
-        if not has_tenant and not is_ceo:
+        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
+        if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
 
-        elif has_tenant and not is_ceo:
-            onboarding = "stage3"
-
-        elif has_tenant and is_ceo and has_branch:
-            onboarding = "stage3"
-
-        elif has_tenant and is_ceo and not has_branch:
-            if has_subscription:
-                onboarding = "stage3"
-            else:
-                onboarding = "stage2"
+        elif has_tenant and not user.is_ceo_role():
+            onboarding = "stage3"        
+            
+        elif has_tenant != complete_onboarding:
+            onboarding = "stage2"
         else:
             onboarding = "stage3"
 
@@ -239,7 +231,6 @@ class UserSignupSerializerVerify(serializers.Serializer):
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
             'onboarding': onboarding,
-            'has_subscription': has_subscription,
             'is_superuser': user.is_superuser
         }
 

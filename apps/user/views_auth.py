@@ -98,38 +98,22 @@ class UserLoginViewSet(viewsets.ModelViewSet):
         tokens = token_serializer.validated_data
 
         has_tenant = bool(user.tenant)
-        is_ceo = bool(user.is_ceo_role())
-        has_branch = bool(user.branch.exists())
-        has_subscription = bool(user.has_subscription(request)) if has_tenant else False
-        if not has_tenant and not is_ceo:
+        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
+        if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
-
-        elif has_tenant and not is_ceo:
+        elif has_tenant and not user.is_ceo_role():
             onboarding = "stage3"
-
-        elif has_tenant and is_ceo and has_branch:
-            onboarding = "stage3"
-
-        elif has_tenant and is_ceo and not has_branch:
-            if has_subscription:
-                onboarding = "stage3"
-            else:
-                onboarding = "stage2"
+        elif has_tenant != complete_onboarding:
+            onboarding = "stage2"
         else:
             onboarding = "stage3"
-        from .services import BillingService
-        if has_tenant:
-            subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
-        else:
-            subscription_details = None
+
         return Response({
             'message': 'Login successful.',
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
             'onboarding': onboarding,
-            'has_subscription': has_subscription,
-            'is_superuser': user.is_superuser,
-            'subscription_details': subscription_details
+            'is_superuser': user.is_superuser
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
@@ -238,39 +222,23 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                     })
 
                     has_tenant = bool(user.tenant)
-                    is_ceo = bool(user.is_ceo_role())
-                    has_branch = bool(user.branch.exists())
-                    has_subscription = bool(user.has_subscription(request)) if has_tenant else False
-                    if not has_tenant and not is_ceo:
+                    complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
+                    if not has_tenant and not complete_onboarding:
                         onboarding = "stage1"
-
-                    elif has_tenant and not is_ceo:
+                    elif has_tenant and not user.is_ceo_role():
                         onboarding = "stage3"
-
-                    elif has_tenant and is_ceo and has_branch:
-                        onboarding = "stage3"
-
-                    elif has_tenant and is_ceo and not has_branch:
-                        if has_subscription:
-                            onboarding = "stage3"
-                        else:
-                            onboarding = "stage2"
+                    elif has_tenant != complete_onboarding:
+                        onboarding = "stage2"
                     else:
                         onboarding = "stage3"
-                    from .services import BillingService
-                    if has_tenant:
-                        subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
-                    else:
-                        subscription_details = None
+
                     return Response({
                         'message': 'Google authentication successful.',
                         'access_token': access_token,
                         'refresh_token': str(refresh),
                         'is_new_user': False,
                         'onboarding': onboarding,
-                        'has_subscription': has_subscription,
                         'is_superuser': user.is_superuser,
-                        'subscription_details': subscription_details,
                         'user': {
                             'email': user.email,
                             'first_name': user.first_name,
@@ -371,40 +339,22 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             })
 
             has_tenant = bool(user.tenant)
-            is_ceo = bool(user.is_ceo_role())
-            has_branch = bool(user.branch.exists())
-            has_subscription = bool(user.has_subscription(request)) if has_tenant else False
-            if not has_tenant and not is_ceo:
+            complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
+            if not has_tenant and not complete_onboarding:
                 onboarding = "stage1"
-
-            elif has_tenant and not is_ceo:
+            elif has_tenant and not user.is_ceo_role():
                 onboarding = "stage3"
-
-            elif has_tenant and is_ceo and has_branch:
-                onboarding = "stage3"
-
-            elif has_tenant and is_ceo and not has_branch:
-                if has_subscription:
-                    onboarding = "stage3"
-                else:
-                    onboarding = "stage2"
+            elif has_tenant != complete_onboarding:
+                onboarding = "stage2"
             else:
                 onboarding = "stage3"
-
-            from .services import BillingService
-            if has_tenant:
-                subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
-            else:
-                subscription_details = None
 
             return Response({
                 'message': 'Account setup successful.',
                 'access_token': access_token,
                 'refresh_token': str(refresh),
                 'onboarding': onboarding,
-                'has_subscription': has_subscription,
                 'is_superuser': user.is_superuser,
-                'subscription_details': subscription_details,
                 'user': {
                     'email': user.email,
                     'first_name': user.first_name,
@@ -555,40 +505,22 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         })
 
         has_tenant = bool(user.tenant)
-        is_ceo = bool(user.is_ceo_role())
-        has_branch = bool(user.branch.exists())
-        has_subscription = bool(user.has_subscription(request)) if has_tenant else False
-        if not has_tenant and not is_ceo:
+        complete_onboarding = bool(user.is_ceo_role() and user.branch.exists())
+        if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
-
-        elif has_tenant and not is_ceo:
+        elif has_tenant and not user.is_ceo_role():
             onboarding = "stage3"
-
-        elif has_tenant and is_ceo and has_branch:
-            onboarding = "stage3"
-
-        elif has_tenant and is_ceo and not has_branch:
-            if has_subscription:
-                onboarding = "stage3"
-            else:
-                onboarding = "stage2"
+        elif has_tenant != complete_onboarding:
+            onboarding = "stage2"
         else:
             onboarding = "stage3"
-
-        from .services import BillingService
-        if has_tenant:
-            subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
-        else:
-            subscription_details = None
 
         return Response({
             'message': 'Password reset successful.',
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
             'onboarding': onboarding,
-            'has_subscription': has_subscription,
-            'is_superuser': user.is_superuser,
-            'subscription_details': subscription_details
+            'is_superuser': user.is_superuser
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("ForgotPassword", "Resend OTP for password reset")
