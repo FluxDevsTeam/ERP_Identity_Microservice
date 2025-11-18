@@ -117,14 +117,19 @@ class UserLoginViewSet(viewsets.ModelViewSet):
                 onboarding = "stage2"
         else:
             onboarding = "stage3"
-
+        from .services import BillingService
+        if has_tenant:
+            subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
+        else:
+            subscription_details = None
         return Response({
             'message': 'Login successful.',
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
             'onboarding': onboarding,
             'has_subscription': has_subscription,
-            'is_superuser': user.is_superuser
+            'is_superuser': user.is_superuser,
+            'subscription_details': subscription_details
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
@@ -252,6 +257,11 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                             onboarding = "stage2"
                     else:
                         onboarding = "stage3"
+                    from .services import BillingService
+                    if has_tenant:
+                        subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
+                    else:
+                        subscription_details = None
                     return Response({
                         'message': 'Google authentication successful.',
                         'access_token': access_token,
@@ -260,6 +270,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                         'onboarding': onboarding,
                         'has_subscription': has_subscription,
                         'is_superuser': user.is_superuser,
+                        'subscription_details': subscription_details,
                         'user': {
                             'email': user.email,
                             'first_name': user.first_name,
@@ -380,6 +391,12 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             else:
                 onboarding = "stage3"
 
+            from .services import BillingService
+            if has_tenant:
+                subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
+            else:
+                subscription_details = None
+
             return Response({
                 'message': 'Account setup successful.',
                 'access_token': access_token,
@@ -387,6 +404,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                 'onboarding': onboarding,
                 'has_subscription': has_subscription,
                 'is_superuser': user.is_superuser,
+                'subscription_details': subscription_details,
                 'user': {
                     'email': user.email,
                     'first_name': user.first_name,
@@ -557,13 +575,20 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         else:
             onboarding = "stage3"
 
+        from .services import BillingService
+        if has_tenant:
+            subscription_details = BillingService.fetch_subscription_details(user.tenant.id, request)
+        else:
+            subscription_details = None
+
         return Response({
             'message': 'Password reset successful.',
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
             'onboarding': onboarding,
             'has_subscription': has_subscription,
-            'is_superuser': user.is_superuser
+            'is_superuser': user.is_superuser,
+            'subscription_details': subscription_details
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("ForgotPassword", "Resend OTP for password reset")

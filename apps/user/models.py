@@ -150,6 +150,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def has_subscription(self, request=None):
         if not self.tenant:
             return False
-        from apps.user.services import BillingService
+        from .services import BillingService
         subscription_details = BillingService.fetch_subscription_details(self.tenant.id, request)
         return bool(subscription_details and subscription_details.get("access"))
