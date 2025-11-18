@@ -146,3 +146,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         if not self.otp:
             return False
         return check_password(str(otp), self.otp)
+
+    def has_subscription(self, request=None):
+        if not self.tenant:
+            return False
+        from apps.user.services import BillingService
+        subscription_details = BillingService.fetch_subscription_details(self.tenant.id, request)
+        return bool(subscription_details and subscription_details.get("access"))

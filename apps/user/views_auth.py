@@ -102,9 +102,19 @@ class UserLoginViewSet(viewsets.ModelViewSet):
         if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
         elif has_tenant != complete_onboarding:
-            onboarding = "stage2"
+            # Check if user has tenant but is not CEO
+            if has_tenant and not user.is_ceo_role():
+                onboarding = "stage4"
+            else:
+                # Check billing microservice for subscription to determine if stage2 is completed
+                has_subscription = bool(user.has_subscription())
+                if has_subscription and user.is_ceo_role():
+                    onboarding = "stage3"
+                else:
+                    onboarding = "stage2"
         else:
-            onboarding = "stage3"
+            # All conditions met, previously stage3, now stage4
+            onboarding = "stage4"
 
         return Response({
             'message': 'Login successful.',
@@ -224,10 +234,19 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                     if not has_tenant and not complete_onboarding:
                         onboarding = "stage1"
                     elif has_tenant != complete_onboarding:
-                        onboarding = "stage2"
+                        # Check if user has tenant but is not CEO
+                        if has_tenant and not user.is_ceo_role():
+                            onboarding = "stage4"
+                        else:
+                            # Check billing microservice for subscription to determine if stage2 is completed
+                            has_subscription = bool(user.has_subscription())
+                            if has_subscription and user.is_ceo_role():
+                                onboarding = "stage3"
+                            else:
+                                onboarding = "stage2"
                     else:
-                        onboarding = "stage3"
-
+                        # All conditions met, previously stage3, now stage4
+                        onboarding = "stage4"
                     return Response({
                         'message': 'Google authentication successful.',
                         'access_token': access_token,
@@ -339,9 +358,19 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             if not has_tenant and not complete_onboarding:
                 onboarding = "stage1"
             elif has_tenant != complete_onboarding:
-                onboarding = "stage2"
+                # Check if user has tenant but is not CEO
+                if has_tenant and not user.is_ceo_role():
+                    onboarding = "stage4"
+                else:
+                    # Check billing microservice for subscription to determine if stage2 is completed
+                    has_subscription = bool(user.has_subscription())
+                    if has_subscription and user.is_ceo_role():
+                        onboarding = "stage3"
+                    else:
+                        onboarding = "stage2"
             else:
-                onboarding = "stage3"
+                # All conditions met, previously stage3, now stage4
+                onboarding = "stage4"
 
             return Response({
                 'message': 'Account setup successful.',
@@ -503,9 +532,15 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         if not has_tenant and not complete_onboarding:
             onboarding = "stage1"
         elif has_tenant != complete_onboarding:
-            onboarding = "stage2"
+            # Check billing microservice for subscription to determine if stage2 is completed
+            has_subscription = bool(user.has_subscription())
+            if has_subscription and user.is_ceo_role():
+                onboarding = "stage3"
+            else:
+                onboarding = "stage2"
         else:
-            onboarding = "stage3"
+            # All conditions met, previously stage3, now stage4
+            onboarding = "stage4"
 
         return Response({
             'message': 'Password reset successful.',
