@@ -216,6 +216,7 @@ class UserSignupSerializerVerify(serializers.Serializer):
         has_tenant = bool(user.tenant)
         is_ceo = bool(user.is_ceo_role())
         has_branch = bool(user.branch.exists())
+        has_subscription = bool(user.has_subscription(self.context.get('request'))) if has_tenant else False
         if not has_tenant and not is_ceo:
             onboarding = "stage1"
 
@@ -226,7 +227,6 @@ class UserSignupSerializerVerify(serializers.Serializer):
             onboarding = "stage3"
 
         elif has_tenant and is_ceo and not has_branch:
-            has_subscription = bool(user.has_subscription(self.context.get('request')))
             if has_subscription:
                 onboarding = "stage3"
             else:
@@ -239,6 +239,7 @@ class UserSignupSerializerVerify(serializers.Serializer):
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
             'onboarding': onboarding,
+            'has_subscription': has_subscription,
             'is_superuser': user.is_superuser
         }
 

@@ -45,7 +45,7 @@ class UserSignupViewSet(viewsets.ModelViewSet):
     @swagger_helper("Signup", "Verify OTP for user signup")
     @action(detail=False, methods=['post'], url_path='verify-otp')
     def verify(self, request):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
         return Response(result, status=status.HTTP_200_OK)
@@ -100,6 +100,7 @@ class UserLoginViewSet(viewsets.ModelViewSet):
         has_tenant = bool(user.tenant)
         is_ceo = bool(user.is_ceo_role())
         has_branch = bool(user.branch.exists())
+        has_subscription = bool(user.has_subscription(request)) if has_tenant else False
         if not has_tenant and not is_ceo:
             onboarding = "stage1"
 
@@ -110,7 +111,6 @@ class UserLoginViewSet(viewsets.ModelViewSet):
             onboarding = "stage3"
 
         elif has_tenant and is_ceo and not has_branch:
-            has_subscription = bool(user.has_subscription(request))
             if has_subscription:
                 onboarding = "stage3"
             else:
@@ -123,6 +123,7 @@ class UserLoginViewSet(viewsets.ModelViewSet):
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
             'onboarding': onboarding,
+            'has_subscription': has_subscription,
             'is_superuser': user.is_superuser
         }, status=status.HTTP_200_OK)
 
@@ -234,6 +235,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                     has_tenant = bool(user.tenant)
                     is_ceo = bool(user.is_ceo_role())
                     has_branch = bool(user.branch.exists())
+                    has_subscription = bool(user.has_subscription(request)) if has_tenant else False
                     if not has_tenant and not is_ceo:
                         onboarding = "stage1"
 
@@ -244,7 +246,6 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                         onboarding = "stage3"
 
                     elif has_tenant and is_ceo and not has_branch:
-                        has_subscription = bool(user.has_subscription(request))
                         if has_subscription:
                             onboarding = "stage3"
                         else:
@@ -257,6 +258,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                         'refresh_token': str(refresh),
                         'is_new_user': False,
                         'onboarding': onboarding,
+                        'has_subscription': has_subscription,
                         'is_superuser': user.is_superuser,
                         'user': {
                             'email': user.email,
@@ -360,17 +362,17 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
             has_tenant = bool(user.tenant)
             is_ceo = bool(user.is_ceo_role())
             has_branch = bool(user.branch.exists())
+            has_subscription = bool(user.has_subscription(request)) if has_tenant else False
             if not has_tenant and not is_ceo:
                 onboarding = "stage1"
-    
+
             elif has_tenant and not is_ceo:
                 onboarding = "stage3"
-    
+
             elif has_tenant and is_ceo and has_branch:
                 onboarding = "stage3"
-    
+
             elif has_tenant and is_ceo and not has_branch:
-                has_subscription = bool(user.has_subscription(request))
                 if has_subscription:
                     onboarding = "stage3"
                 else:
@@ -383,6 +385,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                 'access_token': access_token,
                 'refresh_token': str(refresh),
                 'onboarding': onboarding,
+                'has_subscription': has_subscription,
                 'is_superuser': user.is_superuser,
                 'user': {
                     'email': user.email,
@@ -536,6 +539,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
         has_tenant = bool(user.tenant)
         is_ceo = bool(user.is_ceo_role())
         has_branch = bool(user.branch.exists())
+        has_subscription = bool(user.has_subscription(request)) if has_tenant else False
         if not has_tenant and not is_ceo:
             onboarding = "stage1"
 
@@ -546,7 +550,6 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             onboarding = "stage3"
 
         elif has_tenant and is_ceo and not has_branch:
-            has_subscription = bool(user.has_subscription(request))
             if has_subscription:
                 onboarding = "stage3"
             else:
@@ -559,6 +562,7 @@ class ForgotPasswordViewSet(viewsets.ModelViewSet):
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
             'onboarding': onboarding,
+            'has_subscription': has_subscription,
             'is_superuser': user.is_superuser
         }, status=status.HTTP_200_OK)
 
