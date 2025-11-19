@@ -16,13 +16,18 @@ class BillingService:
             headers["Authorization"] = request.META.get('HTTP_AUTHORIZATION')
 
         try:
-            logger.info(f"Fetching subscription details for tenant_id={tenant_id}, url={url}")
-            response = requests.get(url, params={"tenant_id": tenant_id}, headers=headers)
+            logger.info(f"Fetching subscription details, url={url}")
+            response = requests.get(url, headers=headers)
             response.raise_for_status()
-            logger.info(f"Subscription details fetched successfully for tenant_id={tenant_id}")
-            return response.json()
+            data = response.json()
+            logger.info(f"Subscription details fetched successfully")
+            # Optionally verify tenant_id matches if provided
+            if tenant_id and data.get('tenant_id') and str(data['tenant_id']) != str(tenant_id):
+                logger.warning(f"Tenant ID mismatch: expected {tenant_id}, got {data['tenant_id']}")
+                return None
+            return data
         except requests.RequestException as e:
-            logger.error(f"Error fetching subscription details for tenant_id={tenant_id}: {str(e)}")
+            logger.error(f"Error fetching subscription details: {str(e)}")
             return None
 
     @staticmethod
@@ -41,6 +46,13 @@ class BillingService:
         logger.info(
             f"User can be created for tenant_id={tenant_id}, current_user_count={current_user_count}, max_users={max_users}")
         return True, "User can be created."
+
+    @staticmethod
+    def can_assign_role(tenant_id, role_name, role_industry, tier, request=None):
+        # For now, always allow role assignment if subscription is active
+        # Future: implement specific role limits if needed
+        logger.info(f"Role assignment check for tenant_id={tenant_id}, role_name={role_name}, tier={tier}")
+        return True, "Role can be assigned."
 
     @staticmethod
     def can_create_branch(tenant_id, current_branch_count, request=None):
