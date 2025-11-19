@@ -224,6 +224,8 @@ class TempUserViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
 
     def get_permissions(self):
+        if self.action in ['verify_otp']:
+            return []  # No authentication required for OTP verification
         return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager()), CanManageTempUser(), HasActiveSubscription()]
 
     def get_serializer_class(self):
