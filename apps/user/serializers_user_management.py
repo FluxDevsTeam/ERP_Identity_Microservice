@@ -112,8 +112,7 @@ class UserCreateSerializer(serializers.Serializer):
         # Validate branches
         branches = data.get('branch', [])
         if role.is_ceo_role:
-            if data.get('username'):
-                raise serializers.ValidationError("CEOs do not use usernames.")
+            # CEOs do not use usernames or branches
             if branches:
                 raise serializers.ValidationError("CEOs cannot be assigned to branches.")
             if User.objects.filter(tenant=tenant, role__is_ceo_role=True).exists():
@@ -329,12 +328,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         branches = data.get('branch', [])
         role = role or self.instance.role  # Use existing if not changing
         if role and role.is_ceo_role:
-            if data.get('username'):
-                raise serializers.ValidationError("CEOs do not use usernames.")
+            # CEOs do not use usernames or branches
             if branches:
                 raise serializers.ValidationError("CEOs cannot be assigned to branches.")
             if self.instance and not self.instance.role.is_ceo_role and User.objects.filter(tenant=tenant,
-                                                                                            role__is_ceo_role=True).exists():
+                                                                                             role__is_ceo_role=True).exists():
                 raise serializers.ValidationError("Only one CEO allowed per tenant.")
             data['username'] = None
             data['branch'] = []
