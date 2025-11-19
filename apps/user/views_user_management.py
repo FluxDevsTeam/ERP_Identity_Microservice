@@ -60,6 +60,18 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager())]
 
     def get_serializer_class(self):
+        if self.action in ['list', 'retrieve']:
+            return UserListSerializer
+        elif self.action == 'create':
+            return UserCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return UserUpdateSerializer
+        elif self.action == 'admin_password_change':
+            return AdminPasswordChangeSerializer
+        elif self.action == 'verify_admin_password_change':
+            return AdminVerifyPasswordChangeSerializer
+        elif self.action == 'resend_admin_password_otp':
+            return ResendPasswordChangeOTPSerializer
         return UserListSerializer
 
     def get_queryset(self):

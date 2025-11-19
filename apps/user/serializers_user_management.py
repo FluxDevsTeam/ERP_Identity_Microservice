@@ -27,18 +27,16 @@ class TempUserSerializer(serializers.ModelSerializer):
                   'is_verified', 'created_at', 'created_by']
 
 
-class UserCreateSerializer(serializers.ModelSerializer):
+class UserCreateSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True, min_length=8)
     verify_password = serializers.CharField(write_only=True, required=True, min_length=8)
     username = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=30, required=False)
+    last_name = serializers.CharField(max_length=30, required=False)
+    phone_number = serializers.CharField(max_length=15, required=False)
     role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), required=False)
     branch = serializers.PrimaryKeyRelatedField(many=True, queryset=Branch.objects.all(), required=False)
-
-    class Meta:
-        model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'password', 'verify_password', 'username',
-                  'role', 'branch']
 
     def validate_password(self, value):
         if len(value) < 8:
