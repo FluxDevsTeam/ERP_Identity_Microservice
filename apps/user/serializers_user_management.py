@@ -8,9 +8,9 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 from django.conf import settings
 from apps.tenant.models import Branch
-from apps.role.models import Role
 from apps.user.models_auth import TempUser, PasswordChangeRequest
 from apps.user.services import send_email_via_service, BillingService
+from apps.role.models import ROLE_CHOICES
 
 User = get_user_model()
 
@@ -35,7 +35,7 @@ class UserCreateSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=30, required=False)
     last_name = serializers.CharField(max_length=30, required=False)
     phone_number = serializers.CharField(max_length=15, required=False)
-    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), required=False)
+    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=False)
     branch = serializers.PrimaryKeyRelatedField(many=True, queryset=Branch.objects.all(), required=False)
 
     def validate_password(self, value):
@@ -63,7 +63,7 @@ class UserCreateSerializer(serializers.Serializer):
         if not tenant:
             raise serializers.ValidationError("User must be associated with a tenant.")
 
-        if not user.is_superuser and user.role and user.role.name not in ['ceo', 'branch_manager', 'general_manager']:
+        if not user.is_superuser and user.role and user.role not in ['ceo', 'branch_manager', 'general_manager']:
             raise serializers.ValidationError("Only CEOs, Branch Managers, or General Managers can create users.")
 
         email = data['email']
@@ -88,34 +88,27 @@ class UserCreateSerializer(serializers.Serializer):
         # Validate role
         role = data.get('role')
         if role is None:
-            role, created = Role.objects.get_or_create(
-                name='employee',
-                industry=industry,
-                defaults={
-                    'description': 'Default employee role for this industry.',
-                    'is_ceo_role': False,
-                    'subscription_tiers': [tier]
-                }
-            )
-            data['role'] = role
+            data['role'] = 'employee'
         else:
-            if role.industry not in [industry, 'Other']:
+            # Check if role exists in ROLES_BY_INDUSTRY for the industry
+            from apps.role.models import ROLES_BY_INDUSTRY
+            if industry not in ROLES_BY_INDUSTRY or role not in ROLES_BY_INDUSTRY[industry]:
                 raise serializers.ValidationError({
-                    "role": f"Role industry '{role.industry}' does not match tenant industry '{industry}'. Use a role from '{industry}' or 'Other'."
+                    "role": f"Role '{role}' not available for industry '{industry}'."
                 })
-            can_assign, message = BillingService.can_assign_role(tenant.id, role.name, role.industry, tier, request)
-            if not can_assign:
-                raise serializers.ValidationError({"role": message})
+            role_data = ROLES_BY_INDUSTRY[industry][role]
+            if role_data['tier_req'] != tier:
+                raise serializers.ValidationError({"role": f"Role '{role}' requires tier '{role_data['tier_req']}', but tenant has '{tier}'."})
 
         role = data['role']
 
         # Validate branches
         branches = data.get('branch', [])
-        if role.is_ceo_role:
+        if role == 'ceo':
             # CEOs do not use usernames or branches
             if branches:
                 raise serializers.ValidationError("CEOs cannot be assigned to branches.")
-            if User.objects.filter(tenant=tenant, role__is_ceo_role=True).exists():
+            if User.objects.filter(tenant=tenant, role='ceo').exists():
                 raise serializers.ValidationError("Only one CEO allowed per tenant.")
             data['username'] = None
             data['branch'] = []
@@ -126,7 +119,7 @@ class UserCreateSerializer(serializers.Serializer):
                 if branch.tenant_id != tenant.id:
                     raise serializers.ValidationError(
                         {"branch": f"Branch {branch.name} does not belong to the tenant."})
-            if user.role and user.role.name in ['branch_manager', 'manager']:
+            if user.role in ['branch_manager', 'manager']:
                 user_branches = user.branch.all()
                 for branch in branches:
                     if not user_branches.filter(id=branch.id).exists():
@@ -160,7 +153,7 @@ class UserCreateSerializer(serializers.Serializer):
                 last_name=validated_data.get('last_name', ''),
                 phone_number=validated_data.get('phone_number', ''),
                 password=make_password(password),
-                role=role,
+                role=role,  # Now string
                 tenant=tenant,
                 created_by=created_by
             )
@@ -218,7 +211,7 @@ class UserVerifySerializer(serializers.Serializer):
             last_name=temp_user.last_name,
             phone_number=temp_user.phone_number,
             password=temp_user.password,
-            role=temp_user.role,
+            role=temp_user.role,  # Now string
             tenant=temp_user.tenant,
             created_by=temp_user.created_by,
             is_verified=True
@@ -266,7 +259,7 @@ class UserResendOTPSerializer(serializers.Serializer):
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), required=False)
+    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=False)
     branch = serializers.PrimaryKeyRelatedField(many=True, queryset=Branch.objects.all(), required=False)
     password = serializers.CharField(write_only=True, required=False, min_length=8)
     username = serializers.CharField(max_length=150, required=False, allow_blank=True)
@@ -295,7 +288,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         user = request.user
         if not user.is_authenticated:
             raise serializers.ValidationError("User must be authenticated.")
-        if not user.is_superuser and user.role and user.role.name not in ['ceo', 'branch_manager', 'general_manager']:
+        if not user.is_superuser and user.role and user.role not in ['ceo', 'branch_manager', 'general_manager']:
             raise serializers.ValidationError("Only CEOs, Branch Managers, or General Managers can update users.")
 
         tenant = user.tenant
@@ -316,23 +309,23 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
         role = data.get('role')
         if role:
-            # Ensure role matches tenant industry or 'Other'
-            if role.industry not in [industry, 'Other']:
+            # Ensure role exists in ROLES_BY_INDUSTRY for the industry
+            from apps.role.models import ROLES_BY_INDUSTRY
+            if industry not in ROLES_BY_INDUSTRY or role not in ROLES_BY_INDUSTRY[industry]:
                 raise serializers.ValidationError({
-                                                      "role": f"Role industry '{role.industry}' does not match tenant industry '{industry}'. Use a role from '{industry}' or 'Other'."})
-            # Check billing for assignment
-            can_assign, message = BillingService.can_assign_role(tenant.id, role.name, role.industry, tier, request)
-            if not can_assign:
-                raise serializers.ValidationError({"role": message})
+                    "role": f"Role '{role}' not available for industry '{industry}'."
+                })
+            role_data = ROLES_BY_INDUSTRY[industry][role]
+            if role_data['tier_req'] != tier:
+                raise serializers.ValidationError({"role": f"Role '{role}' requires tier '{role_data['tier_req']}', but tenant has '{tier}'."})
 
         branches = data.get('branch', [])
         role = role or self.instance.role  # Use existing if not changing
-        if role and role.is_ceo_role:
+        if role == 'ceo':
             # CEOs do not use usernames or branches
             if branches:
                 raise serializers.ValidationError("CEOs cannot be assigned to branches.")
-            if self.instance and not self.instance.role.is_ceo_role and User.objects.filter(tenant=tenant,
-                                                                                             role__is_ceo_role=True).exists():
+            if self.instance and self.instance.role != 'ceo' and User.objects.filter(tenant=tenant, role='ceo').exists():
                 raise serializers.ValidationError("Only one CEO allowed per tenant.")
             data['username'] = None
             data['branch'] = []
@@ -343,7 +336,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 if branch.tenant_id != tenant.id:
                     raise serializers.ValidationError(
                         {"branch": f"Branch {branch.name} does not belong to the tenant."})
-            if user.role and user.role.name in ['branch_manager', 'manager']:
+            if user.role in ['branch_manager', 'manager']:
                 user_branches = user.branch.all()
                 for branch in branches:
                     if not user_branches.filter(id=branch.id).exists():
@@ -367,7 +360,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 
 class UserListSerializer(serializers.ModelSerializer):
-    role = serializers.SlugRelatedField(slug_field='name', read_only=True)
+    role = serializers.CharField(read_only=True)
     branch = serializers.SlugRelatedField(many=True, slug_field='name', read_only=True)
     created_by = serializers.SlugRelatedField(slug_field='email', read_only=True)
     updated_by = serializers.SlugRelatedField(slug_field='email', read_only=True)
@@ -376,6 +369,15 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone_number', 'role', 'branch', 'is_verified',
                   'is_active', 'created_at', 'created_by', 'updated_at', 'updated_by']
+
+
+class UserCustomPermissionsSerializer(serializers.ModelSerializer):
+    custom_permissions = serializers.JSONField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'role', 'custom_permissions']
+        read_only_fields = ['id', 'email', 'first_name', 'last_name', 'role']
 
 
 class AdminPasswordChangeSerializer(serializers.Serializer):

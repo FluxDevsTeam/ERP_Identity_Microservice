@@ -11,15 +11,15 @@ class CanManageTempUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and (
             request.user.is_superuser or
-            request.user.role.name in ['ceo', 'general_manager', 'branch_manager', 'manager']
+            request.user.role in ['ceo', 'general_manager', 'branch_manager', 'manager']
         )
 
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if request.user.role.name in ['ceo', 'general_manager']:
+        if request.user.role in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant  # Access all TempUsers in tenant
-        if request.user.role.name in ['branch_manager', 'manager']:
+        if request.user.role in ['branch_manager', 'manager']:
             return obj.tenant == request.user.tenant and any(
                 branch in request.user.branch.all() for branch in obj.branch.all()
             )  # Only TempUsers in their branch
@@ -45,30 +45,30 @@ class HasNoRoleOrIsCEO(permissions.BasePermission):
 
 class IsManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role.name == 'manager'
+        return request.user and request.user.is_authenticated and request.user.role == 'manager'
 
 class IsGeneralManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role.name == 'general_manager'
+        return request.user and request.user.is_authenticated and request.user.role == 'general_manager'
 
 class IsBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role.name == 'branch_manager'
+        return request.user and request.user.is_authenticated and request.user.role == 'branch_manager'
 
 class IsCEOorManagerOrGeneralManagerOrBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and (
             request.user.is_superuser or
-            request.user.role.name in ['ceo', 'manager', 'general_manager', 'branch_manager']
+            request.user.role in ['ceo', 'manager', 'general_manager', 'branch_manager']
         )
 
 class CanViewEditUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if request.user.role.name in ['ceo', 'general_manager']:
+        if request.user.role in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant  # Access all Users in tenant
-        if request.user.role.name in ['branch_manager', 'manager']:
+        if request.user.role in ['branch_manager', 'manager']:
             return obj.tenant == request.user.tenant and any(
                 branch in request.user.branch.all() for branch in obj.branch.all()
             )  # Only Users in their branch
@@ -78,9 +78,9 @@ class CanDeleteUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if request.user.role.name in ['ceo', 'general_manager']:
+        if request.user.role in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant  # Delete all Users in tenant
-        if request.user.role.name in ['branch_manager', 'manager']:
+        if request.user.role in ['branch_manager', 'manager']:
             return obj.tenant == request.user.tenant and any(
                 branch in request.user.branch.all() for branch in obj.branch.all()
             )  # Delete only Users in their branch
@@ -88,7 +88,7 @@ class CanDeleteUser(permissions.BasePermission):
 
 class CanCreateBranch(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role.name in ['ceo', 'general_manager']
+        return request.user and request.user.is_authenticated and request.user.role in ['ceo', 'general_manager']
 
 class HasActiveSubscription(permissions.BasePermission):
     def has_permission(self, request, view):

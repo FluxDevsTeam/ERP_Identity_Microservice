@@ -2,11 +2,12 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import ForgotPasswordViewSet
 from .views_auth import UserSignupViewSet, UserLoginViewSet, GoogleAuthViewSet, LogoutViewSet, UsernameAvailabilityView
-from .views_user_management import UserManagementViewSet, TempUserViewSet
+from .views_user_management import UserManagementViewSet, TempUserViewSet, UserCustomPermissionsViewSet
 
 # Router for ViewSets (auto-generates endpoints for list, create, retrieve, update, destroy, and custom actions)
 router = DefaultRouter()
 router.register('management', UserManagementViewSet, basename='management')  # UserManagementViewSet
+router.register('custom-permissions', UserCustomPermissionsViewSet, basename='custom-permissions')  # UserCustomPermissionsViewSet
 
 urlpatterns = [
     # Non-viewset manual paths (unchanged)
