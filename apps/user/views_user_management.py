@@ -221,7 +221,7 @@ class TempUserViewSet(viewsets.ModelViewSet):
     serializer_class = TempUserSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
-    filterset_fields = ['role__name', 'tenant', 'branch']
+    filterset_fields = ['tenant', 'branch']
     pagination_class = PageNumberPagination
 
     def get_permissions(self):
