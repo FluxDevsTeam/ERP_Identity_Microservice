@@ -5,7 +5,6 @@ from .models import PERMISSIONS_CONFIG
 from .utils import swagger_helper
 
 class PermissionsConfigView(APIView):
-    permission_classes = [IsAuthenticated]
 
     @swagger_helper(tags="Permissions Config", model="Permissions Config")
     def get(self, request):
