@@ -325,14 +325,6 @@ class UserCustomPermissionsViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
-    @swagger_helper("User Custom Permissions", "Update a user's custom permissions.")
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"data": "Custom permissions updated successfully."}, status=status.HTTP_200_OK)
-
     @swagger_helper("User Custom Permissions", "Partially update a user's custom permissions.")
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)

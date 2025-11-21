@@ -7,7 +7,6 @@ from .views_user_management import UserManagementViewSet, TempUserViewSet, UserC
 # Router for ViewSets (auto-generates endpoints for list, create, retrieve, update, destroy, and custom actions)
 router = DefaultRouter()
 router.register('management', UserManagementViewSet, basename='management')  # UserManagementViewSet
-router.register('custom-permissions', UserCustomPermissionsViewSet, basename='custom-permissions')  # UserCustomPermissionsViewSet
 
 urlpatterns = [
     # Non-viewset manual paths (unchanged)
@@ -42,6 +41,10 @@ urlpatterns = [
     path('google-auth/set-google-auth-password/', GoogleAuthViewSet.as_view({'post': 'set_google_auth_password'}), name='set_google_auth_password'),
 
     path('check-username/', UsernameAvailabilityView.as_view({'post': 'create'}), name='check_username'),
+
+    # UserCustomPermissionsViewSet
+    path('custom-permissions/', UserCustomPermissionsViewSet.as_view({'get': 'list'}), name='custom_permissions_list'),
+    path('custom-permissions/<uuid:pk>/', UserCustomPermissionsViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update'}), name='custom_permissions_detail'),
 
     path('', include(router.urls)),
 ]
