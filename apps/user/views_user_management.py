@@ -239,9 +239,9 @@ class TempUserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return TempUser.objects.select_related('role', 'created_by').prefetch_related('branch')
+            return TempUser.objects.select_related('created_by').prefetch_related('branch')
         if user.tenant:
-            return TempUser.objects.select_related('role', 'created_by').prefetch_related('branch').filter(tenant=user.tenant)
+            return TempUser.objects.select_related('created_by').prefetch_related('branch').filter(tenant=user.tenant)
         return TempUser.objects.none()
 
     @swagger_helper("Temp User Management", "List all pending temp users filtered by role, tenant, and branch. Supports search.")
