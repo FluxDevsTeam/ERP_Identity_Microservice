@@ -26,7 +26,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token['tenant'] = str(user.tenant.id) if user.tenant else None
-        token['role'] = user.role.name if user.role else None
+        token['role'] = user.role if user.role else None
         token['is_superuser'] = user.is_superuser
         token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
         token['email'] = user.email
@@ -41,7 +41,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'role': user.role.name if user.role else None
+            'role': user.role if user.role else None
         }
         return data
 
@@ -52,7 +52,7 @@ class CustomRefreshTokenSerializer(TokenObtainPairSerializer):
         token = RefreshToken.for_user(user)
         token['tenant'] = str(user.tenant.id) if user.tenant else None
         token['tenant_name'] = str(user.tenant.name) if user.tenant else None
-        token['role'] = user.role.name if user.role else None
+        token['role'] = user.role if user.role else None
         token['is_superuser'] = user.is_superuser
         token['branches'] = [str(branch.id) for branch in user.branch.all()] if user.branch.exists() else []
         token['email'] = user.email

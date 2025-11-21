@@ -243,7 +243,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                             'email': user.email,
                             'first_name': user.first_name,
                             'last_name': user.last_name,
-                            'role': user.role.name if user.role else None
+                            'role': user.role if user.role else None
                         }
                     }, status=status.HTTP_200_OK)
                 else:
@@ -359,7 +359,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                     'email': user.email,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
-                    'role': user.role.name if user.role else None
+                    'role': user.role if user.role else None
                 }
             }, status=status.HTTP_200_OK)
 

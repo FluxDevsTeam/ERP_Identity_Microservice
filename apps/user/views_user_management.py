@@ -11,7 +11,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .serializers_user_management import (
     UserCreateSerializer, UserUpdateSerializer,
     AdminPasswordChangeSerializer, AdminVerifyPasswordChangeSerializer,
-    ResendPasswordChangeOTPSerializer, UserVerifySerializer, UserResendOTPSerializer
+    ResendPasswordChangeOTPSerializer, UserVerifySerializer, UserResendOTPSerializer,
+    UserCustomPermissionsSerializer
 )
 from .models import User
 from .utils import swagger_helper
@@ -47,7 +48,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
-    filterset_fields = ['role__name', 'tenant', 'branch', 'is_verified']
+    filterset_fields = ['role', 'tenant', 'branch', 'is_verified']
     pagination_class = PageNumberPagination
 
     def get_permissions(self):
@@ -77,10 +78,10 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return User.objects.select_related('role', 'created_by').prefetch_related('branch')
+            return User.objects.select_related('created_by').prefetch_related('branch')
         if user.tenant:
-            queryset = User.objects.select_related('role', 'created_by').prefetch_related('branch').filter(tenant=user.tenant)
-            if user.role.name in ['branch_manager', 'manager']:
+            queryset = User.objects.select_related('created_by').prefetch_related('branch').filter(tenant=user.tenant)
+            if user.role in ['branch_manager', 'manager']:
                 return queryset.filter(branch__in=user.branch.all()).distinct()
             return queryset
         return User.objects.none()
@@ -294,3 +295,44 @@ class TempUserViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         return Response({"detail": "Updating temp users is not allowed."}, status=status.HTTP_403_FORBIDDEN)
+
+
+class UserCustomPermissionsViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserCustomPermissionsSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['email', 'username', 'first_name', 'last_name']
+    filterset_fields = ['role', 'tenant']
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager()), HasActiveSubscription()]
+        return [IsAuthenticated(), OR(IsSuperuser(), IsCEOorManagerOrGeneralManagerOrBranchManager()), HasActiveSubscription()]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return User.objects.all()
+        if user.tenant:
+            return User.objects.filter(tenant=user.tenant)
+        return User.objects.none()
+
+    @swagger_helper("User Custom Permissions", "List users with their custom permissions.")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_helper("User Custom Permissions", "Retrieve a user's custom permissions.")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_helper("User Custom Permissions", "Update a user's custom permissions.")
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"data": "Custom permissions updated successfully."}, status=status.HTTP_200_OK)
+
+    @swagger_helper("User Custom Permissions", "Partially update a user's custom permissions.")
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
