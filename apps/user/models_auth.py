@@ -3,7 +3,6 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
-from apps.role.models import Role
 from apps.tenant.models import Branch, Tenant
 
 
@@ -15,7 +14,7 @@ class TempUser(models.Model):
     last_name = models.CharField(max_length=30, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
     password = models.CharField(max_length=128)
-    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
+    role = models.CharField(max_length=50, null=True, blank=True)
     tenant = models.ForeignKey(Tenant, on_delete=models.SET_NULL, null=True, blank=True)  # Fixed: Optional for pre-tenant signup
     branch = models.ManyToManyField(Branch, blank=True)
     otp = models.CharField(max_length=128, null=True, blank=True)

@@ -15,43 +15,43 @@ class IsSuperuser(permissions.BasePermission):
 
 class IsCEO(permissions.BasePermission):
     def has_permission(self, request, view):
-        result = request.user and request.user.is_authenticated and getattr(request.user.role, 'name', None) == "ceo"
-        logger.info(f"IsCEO.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        result = request.user and request.user.is_authenticated and request.user.role == "ceo"
+        logger.info(f"IsCEO.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class IsManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        result = request.user and request.user.is_authenticated and getattr(request.user.role, 'name', None) == 'manager'
-        logger.info(f"IsManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        result = request.user and request.user.is_authenticated and request.user.role == 'manager'
+        logger.info(f"IsManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class IsGeneralManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        result = request.user and request.user.is_authenticated and getattr(request.user.role, 'name', None) == 'general_manager'
-        logger.info(f"IsGeneralManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        result = request.user and request.user.is_authenticated and request.user.role == 'general_manager'
+        logger.info(f"IsGeneralManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class IsBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
-        result = request.user and request.user.is_authenticated and getattr(request.user.role, 'name', None) == 'branch_manager'
-        logger.info(f"IsBranchManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        result = request.user and request.user.is_authenticated and request.user.role == 'branch_manager'
+        logger.info(f"IsBranchManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class IsCEOorManagerOrGeneralManagerOrBranchManager(permissions.BasePermission):
     def has_permission(self, request, view):
         result = request.user and request.user.is_authenticated and (
-            request.user.is_superuser or getattr(request.user.role, 'name', None) in ['ceo', 'manager', 'general_manager', 'branch_manager']
+            request.user.is_superuser or request.user.role in ['ceo', 'manager', 'general_manager', 'branch_manager']
         )
-        logger.info(f"IsCEOorManagerOrGeneralManagerOrBranchManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        logger.info(f"IsCEOorManagerOrGeneralManagerOrBranchManager.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class CanViewEditUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if getattr(request.user.role, 'name', None) in ['ceo', 'general_manager']:
+        if request.user.role in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant
-        if getattr(request.user.role, 'name', None) in ['branch_manager', 'manager']:
+        if request.user.role in ['branch_manager', 'manager']:
             if request.user.tenant.branches.count() == 1:
                 return obj.tenant == request.user.tenant
             else:
@@ -62,9 +62,9 @@ class CanDeleteUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-        if getattr(request.user.role, 'name', None) in ['ceo', 'general_manager']:
+        if request.user.role in ['ceo', 'general_manager']:
             return obj.tenant == request.user.tenant
-        if getattr(request.user.role, 'name', None) in ['branch_manager', 'manager']:
+        if request.user.role in ['branch_manager', 'manager']:
             if request.user.tenant.branches.count() == 1:
                 return obj.tenant == request.user.tenant
             else:
@@ -73,8 +73,8 @@ class CanDeleteUser(permissions.BasePermission):
 
 class CanCreateBranch(permissions.BasePermission):
     def has_permission(self, request, view):
-        result = request.user and request.user.is_authenticated and getattr(request.user.role, 'name', None) in ['ceo', 'general_manager']
-        logger.info(f"CanCreateBranch.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        result = request.user and request.user.is_authenticated and request.user.role in ['ceo', 'general_manager']
+        logger.info(f"CanCreateBranch.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class HasNoRoleOrIsCEO(permissions.BasePermission):
@@ -83,8 +83,8 @@ class HasNoRoleOrIsCEO(permissions.BasePermission):
             return False
         if request.user.is_superuser:
             return True
-        result = not request.user.role or getattr(request.user.role, 'name', None) == "ceo"
-        logger.info(f"HasNoRoleOrIsCEO.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={getattr(request.user.role, 'name', 'None')}, result={result}")
+        result = not request.user.role or request.user.role == "ceo"
+        logger.info(f"HasNoRoleOrIsCEO.has_permission: user={request.user}, is_authenticated={request.user.is_authenticated}, role={request.user.role}, result={result}")
         return result
 
 class HasActiveSubscription(permissions.BasePermission):

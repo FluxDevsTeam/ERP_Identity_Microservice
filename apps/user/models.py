@@ -3,7 +3,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.validators import MinLengthValidator
 from django.core.exceptions import ValidationError
-from apps.role.models import Permission, ROLES_BY_INDUSTRY, Role
+from apps.role.models import ROLES_BY_INDUSTRY
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 
@@ -31,10 +31,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_verified', True)
         if 'role' not in extra_fields:
-            default_role, _ = Role.objects.get_or_create(
-                name='ceo', industry='Other', defaults={'is_ceo_role': True}
-            )
-            extra_fields['role'] = default_role
+            extra_fields['role'] = 'ceo'
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError("Superuser must have is_staff=True.")
@@ -56,9 +53,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, blank=True)
-    role = models.ForeignKey(
-        'role.Role', on_delete=models.SET_NULL, null=True, blank=True,
-        help_text="Assigned role; determines default permissions. Filtered by industry/tier."
+    role = models.CharField(
+        max_length=50, choices=[(k, k.title().replace('_', ' ')) for k in ROLES_BY_INDUSTRY.get('Finance', {}).keys()] + [(k, k.title().replace('_', ' ')) for k in ROLES_BY_INDUSTRY.get('Healthcare', {}).keys()] + [(k, k.title().replace('_', ' ')) for k in ROLES_BY_INDUSTRY.get('Education', {}).keys()] + [(k, k.title().replace('_', ' ')) for k in ROLES_BY_INDUSTRY.get('Other', {}).keys()],
+        null=True, blank=True,
+        help_text="Assigned role; determines default permissions."
     )
     tenant = models.ForeignKey('tenant.Tenant', on_delete=models.SET_NULL, null=True, blank=True)
     branch = models.ManyToManyField('tenant.Branch', blank=True)
@@ -73,6 +71,11 @@ class User(AbstractBaseUser, PermissionsMixin):
                                    related_name='created_users')
     updated_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='updated_users')
+    custom_permissions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Custom permissions: {'granted': ['codename1'], 'revoked': ['codename2']}"
+    )
 
     objects = UserManager()
 
@@ -83,18 +86,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.role and self.tenant and self.tenant.subscription:
             industry = self.tenant.subscription.plan.industry
             tier = self.tenant.subscription.plan.tier_level
-            from apps.role.service import BillingService
-            can_assign, message = BillingService.can_assign_role(
-                self.tenant.id, self.role.name, self.role.industry, tier, request=None
-            )
-            if not can_assign:
-                raise ValidationError(message)
+            role_data = ROLES_BY_INDUSTRY.get(industry, {}).get(self.role) or ROLES_BY_INDUSTRY.get('Other', {}).get(self.role)
+            if not role_data:
+                raise ValidationError(f"Role '{self.role}' not available.")
+            if role_data.get('tier_req') != tier:
+                raise ValidationError(f"Role '{self.role}' requires tier '{role_data['tier_req']}', but tenant has '{tier}'.")
 
     def __str__(self):
         return self.username or self.email
 
     def is_ceo_role(self):
-        return bool(self.role and getattr(self.role, "is_ceo_role", False))
+        return self.role == 'ceo'
 
     def get_industry(self):
         if self.tenant and self.tenant.subscription:
@@ -105,22 +107,27 @@ class User(AbstractBaseUser, PermissionsMixin):
         if not self.role:
             return []
         industry = self.get_industry()
-        if self.role.is_ceo_role:
-            tier = self.tenant.subscription.plan.tier_level if self.tenant and self.tenant.subscription else 'tier1'
-            return [p.codename for p in
-                    Permission.objects.filter(industry=industry, subscription_tiers__contains=[tier])]
-        elif self.role.name in ROLES_BY_INDUSTRY.get(industry, {}):
-            return ROLES_BY_INDUSTRY[industry][self.role.name]['default_perms']
-        return []
+        role_data = ROLES_BY_INDUSTRY.get(industry, {}).get(self.role) or ROLES_BY_INDUSTRY.get('Other', {}).get(self.role)
+        if not role_data:
+            return []
+        # default_perms is now directly a list of permission names
+        perm_names = role_data.get('default_perms', [])
+        # Convert permission names to codenames
+        perms = []
+        for perm_name in perm_names:
+            codename = f"{industry.lower()}_{perm_name}"
+            perms.append(codename)
+        return perms
 
     def get_effective_permissions(self):
         default_codes = set(self.get_default_permissions())
-        user_industry = self.get_industry()
-        for up in self.custom_user_permissions.filter(permission__industry=user_industry):
-            if up.granted:
-                default_codes.add(up.permission.codename)
-            else:
-                default_codes.discard(up.permission.codename)
+        custom = self.custom_permissions or {}
+
+        for codename in custom.get('granted', []):
+            default_codes.add(codename)
+        for codename in custom.get('revoked', []):
+            default_codes.discard(codename)
+
         return sorted(list(default_codes))
 
     def has_permission(self, codename):
@@ -130,12 +137,19 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_available_roles(self, subscription_tier):
         if self.is_superuser:
-            return [(r.name, r.name.title().replace('_', ' ')) for r in Role.objects.all()]
+            all_roles = []
+            for ind, roles in ROLES_BY_INDUSTRY.items():
+                for role_name, data in roles.items():
+                    all_roles.append((role_name, role_name.title().replace('_', ' ')))
+            return all_roles
         industry = self.get_industry()
         available = []
-        for role in Role.objects.filter(industry__in=[industry, 'Other']):
-            if role.subscription_tiers and subscription_tier in role.subscription_tiers:
-                available.append((role.name, r.name.title().replace('_', ' ')))
+        for role_name, data in ROLES_BY_INDUSTRY.get(industry, {}).items():
+            if data.get('tier_req') == subscription_tier:
+                available.append((role_name, role_name.title().replace('_', ' ')))
+        for role_name, data in ROLES_BY_INDUSTRY.get('Other', {}).items():
+            if data.get('tier_req') == subscription_tier:
+                available.append((role_name, role_name.title().replace('_', ' ')))
         return available
 
     def set_otp(self, otp):

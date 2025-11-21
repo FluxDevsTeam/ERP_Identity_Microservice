@@ -73,17 +73,8 @@ class TenantView(ModelViewSet):
         self.request.user.tenant = tenant
         self.request.user.save()
         
-        # Create CEO role for the tenant's industry and assign it to the user
-        from apps.role.models import Role
-        ceo_role, _ = Role.objects.get_or_create(
-            name='ceo',
-            industry=tenant.industry,
-            defaults={
-                'is_ceo_role': True,
-                'subscription_tiers': []
-            }
-        )
-        self.request.user.role = ceo_role
+        # Assign CEO role to the user
+        self.request.user.role = 'ceo'
         self.request.user.save()
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -123,11 +114,11 @@ class BranchView(ModelViewSet):
             return Branch.objects.none()
         if user.is_superuser:
             return Branch.objects.all()
-        if user.role.name in ['ceo', 'general_manager']:
+        if user.role in ['ceo', 'general_manager']:
             if user.tenant:
                 return Branch.objects.filter(tenant=user.tenant)
             return Branch.objects.none()
-        if user.role.name == 'branch_manager':
+        if user.role == 'branch_manager':
             if user.tenant and user.branch.exists():
                 return Branch.objects.filter(tenant=user.tenant, id__in=user.branch.all())
             return Branch.objects.none()
