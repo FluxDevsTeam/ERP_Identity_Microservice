@@ -3,7 +3,7 @@ import logging
 import requests
 from rest_framework import permissions
 from .service import BillingService
-from .models import Permission
+# No Permission model, using static permissions
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class IsCEOorManagerOrGeneralManagerOrBranchManager(permissions.BasePermission):
             f"IsCEOorManager: Checking for user={request.user.email}, tenant_id={tenant_id}, view={view.basename}, action={view.action}")
         return request.user and request.user.is_authenticated and (
                 request.user.is_superuser or
-                (request.user.role and request.user.role.name in ['ceo', 'manager', 'general_manager',
+                (request.user.role and request.user.role in ['ceo', 'manager', 'general_manager',
                                                                   'branch_manager'])
         )
 
@@ -71,20 +71,6 @@ class HasActiveSubscription(permissions.BasePermission):
                     logger.info(f"Role assignment check: can_assign={can_assign}, message={message}")
                     return can_assign
 
-            elif view.basename == 'user-permission' and view.action in ['create', 'update', 'partial_update']:
-                permission_codename = request.data.get('permission')
-                if permission_codename:
-                    try:
-                        permission = Permission.objects.get(codename=permission_codename)
-                        plan_industry = subscription_details['plan'].get('industry', 'Other')
-                        if permission.industry != plan_industry and plan_industry != 'Other':
-                            logger.warning(
-                                f"Permission {permission_codename} industry mismatch for tenant_id={tenant_id}"
-                            )
-                            return False
-                    except Permission.DoesNotExist:
-                        logger.warning(f"Permission {permission_codename} not found for tenant_id={tenant_id}")
-                        return False
 
             logger.info(f"HasActiveSubscription: Access granted for view={view.basename}, action={view.action}")
             return True

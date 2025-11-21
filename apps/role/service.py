@@ -2,7 +2,7 @@ import logging
 import requests
 from django.conf import settings
 from django.core.cache import cache
-from .models import ROLES_BY_INDUSTRY, Permission
+from .models import ROLES_BY_INDUSTRY
 
 logger = logging.getLogger(__name__)
 
@@ -82,22 +82,3 @@ class BillingService:
         )
         return True, "Role can be assigned."
 
-    @staticmethod
-    def can_assign_permission(tenant_id, permission_codename, request=None):
-        subscription_details = BillingService.fetch_subscription_details(tenant_id, request)
-        if not subscription_details or not subscription_details.get("access"):
-            logger.warning(f"Access denied or subscription details unavailable for tenant_id={tenant_id}")
-            return False, "Access denied or subscription details unavailable."
-
-        plan_industry = subscription_details["plan"].get("industry", "Other")
-        try:
-            permission = Permission.objects.get(codename=permission_codename)
-            if permission.industry != plan_industry and plan_industry != "Other":
-                logger.warning(
-                    f"Permission {permission_codename} industry {permission.industry} does not match plan industry {plan_industry}"
-                )
-                return False, f"Permission '{permission_codename}' industry '{permission.industry}' does not match subscription industry '{plan_industry}'."
-            return True, "Permission can be assigned."
-        except Permission.DoesNotExist:
-            logger.warning(f"Permission {permission_codename} not found")
-            return False, f"Permission '{permission_codename}' does not exist."
