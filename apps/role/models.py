@@ -8,18 +8,18 @@ from django.core.cache import cache
 PERMISSIONS_CONFIG = {
     'Finance': {
         'permissions': {
-            'BASIC_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income', 'level': 'basic'},
-            'CREATE_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income', 'level': 'create'},
-            'FULL_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income', 'level': 'full'},
-            'BASIC_LOAN_MANAGEMENT': {'tier_req': 'tier2', 'category': 'loan', 'level': 'basic'},
-            'APPROVE_LOAN_ACCESS': {'tier_req': 'tier2', 'category': 'loan', 'level': 'approve'},
-            'FULL_LOAN_MANAGEMENT': {'tier_req': 'tier2', 'category': 'loan', 'level': 'full'},
-            'BASIC_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report', 'level': 'basic'},
-            'EDIT_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report', 'level': 'edit'},
-            'FULL_REPORT_ACCESS': {'tier_req': 'tier2', 'category': 'report', 'level': 'full'},
-            'MANAGE_BUDGET_ACCESS': {'tier_req': 'tier3', 'category': 'budget', 'level': 'manage'},
-            'GENERATE_STATEMENT_ACCESS': {'tier_req': 'tier2', 'category': 'statement', 'level': 'generate'},
-            'AUDIT_COMPLIANCE_ACCESS': {'tier_req': 'tier3', 'category': 'audit', 'level': 'audit'},
+            'BASIC_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
+            'CREATE_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
+            'FULL_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
+            'BASIC_LOAN_MANAGEMENT': {'tier_req': 'tier2', 'category': 'loan'},
+            'APPROVE_LOAN_ACCESS': {'tier_req': 'tier2', 'category': 'loan'},
+            'FULL_LOAN_MANAGEMENT': {'tier_req': 'tier2', 'category': 'loan'},
+            'BASIC_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report'},
+            'EDIT_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report'},
+            'FULL_REPORT_ACCESS': {'tier_req': 'tier2', 'category': 'report'},
+            'MANAGE_BUDGET_ACCESS': {'tier_req': 'tier3', 'category': 'budget'},
+            'GENERATE_STATEMENT_ACCESS': {'tier_req': 'tier2', 'category': 'statement'},
+            'AUDIT_COMPLIANCE_ACCESS': {'tier_req': 'tier3', 'category': 'audit'},
         },
         'roles': {
             'accountant': ['FULL_INCOME_ACCESS', 'EDIT_REPORT_ACCESS'],
@@ -32,11 +32,11 @@ PERMISSIONS_CONFIG = {
     },
     'Healthcare': {
         'permissions': {
-            'BASIC_PATIENT_ACCESS': {'tier_req': 'tier1', 'category': 'patient', 'level': 'basic'},
-            'FULL_PATIENT_ACCESS': {'tier_req': 'tier1', 'category': 'patient', 'level': 'full'},
-            'EDIT_DIAGNOSIS_ACCESS': {'tier_req': 'tier1', 'category': 'patient', 'level': 'edit_diagnosis'},
-            'MANAGE_SCHEDULE_ACCESS': {'tier_req': 'tier2', 'category': 'schedule', 'level': 'manage'},
-            'PHARMACY_ACCESS': {'tier_req': 'tier2', 'category': 'pharmacy', 'level': 'pharmacy'},
+            'BASIC_PATIENT_ACCESS': {'tier_req': 'tier1', 'category': 'patient'},
+            'FULL_PATIENT_ACCESS': {'tier_req': 'tier1', 'category': 'patient'},
+            'EDIT_DIAGNOSIS_ACCESS': {'tier_req': 'tier1', 'category': 'patient'},
+            'MANAGE_SCHEDULE_ACCESS': {'tier_req': 'tier2', 'category': 'schedule'},
+            'PHARMACY_ACCESS': {'tier_req': 'tier2', 'category': 'pharmacy'},
         },
         'roles': {
             'doctor': ['FULL_PATIENT_ACCESS', 'EDIT_DIAGNOSIS_ACCESS'],
@@ -49,11 +49,11 @@ PERMISSIONS_CONFIG = {
     },
     'Education': {
         'permissions': {
-            'BASIC_STUDENT_ACCESS': {'tier_req': 'tier1', 'category': 'student', 'level': 'basic'},
-            'EDIT_GRADES_ACCESS': {'tier_req': 'tier1', 'category': 'student', 'level': 'edit_grades'},
-            'FULL_STUDENT_ACCESS': {'tier_req': 'tier1', 'category': 'student', 'level': 'full'},
-            'MANAGE_ATTENDANCE_ACCESS': {'tier_req': 'tier2', 'category': 'attendance', 'level': 'manage'},
-            'PLAN_CURRICULUM_ACCESS': {'tier_req': 'tier2', 'category': 'curriculum', 'level': 'plan'},
+            'BASIC_STUDENT_ACCESS': {'tier_req': 'tier1', 'category': 'student'},
+            'EDIT_GRADES_ACCESS': {'tier_req': 'tier1', 'category': 'student'},
+            'FULL_STUDENT_ACCESS': {'tier_req': 'tier1', 'category': 'student'},
+            'MANAGE_ATTENDANCE_ACCESS': {'tier_req': 'tier2', 'category': 'attendance'},
+            'PLAN_CURRICULUM_ACCESS': {'tier_req': 'tier2', 'category': 'curriculum'},
         },
         'roles': {
             'teacher': ['FULL_STUDENT_ACCESS', 'EDIT_GRADES_ACCESS'],
@@ -65,11 +65,11 @@ PERMISSIONS_CONFIG = {
     },
     'Production': {
         'permissions': {
-            'BASIC_PRODUCT_ACCESS': {'tier_req': 'tier1', 'category': 'product', 'level': 'basic'},
-            'EDIT_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'product', 'level': 'edit_inventory'},
-            'FULL_PRODUCT_ACCESS': {'tier_req': 'tier1', 'category': 'product', 'level': 'full'},
-            'MANAGE_PRODUCTION_ACCESS': {'tier_req': 'tier2', 'category': 'production', 'level': 'manage'},
-            'QUALITY_CONTROL_ACCESS': {'tier_req': 'tier2', 'category': 'quality', 'level': 'control'},
+            'BASIC_PRODUCT_ACCESS': {'tier_req': 'tier1', 'category': 'product'},
+            'EDIT_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'product'},
+            'FULL_PRODUCT_ACCESS': {'tier_req': 'tier1', 'category': 'product'},
+            'MANAGE_PRODUCTION_ACCESS': {'tier_req': 'tier2', 'category': 'production'},
+            'QUALITY_CONTROL_ACCESS': {'tier_req': 'tier2', 'category': 'quality'},
         },
         'roles': {
             'production_manager': ['FULL_PRODUCT_ACCESS', 'EDIT_INVENTORY_ACCESS', 'MANAGE_PRODUCTION_ACCESS'],
@@ -82,11 +82,11 @@ PERMISSIONS_CONFIG = {
     },
     'Technology': {
         'permissions': {
-            'BASIC_CODE_ACCESS': {'tier_req': 'tier1', 'category': 'code', 'level': 'basic'},
-            'EDIT_CODE_ACCESS': {'tier_req': 'tier1', 'category': 'code', 'level': 'edit'},
-            'FULL_CODE_ACCESS': {'tier_req': 'tier1', 'category': 'code', 'level': 'full'},
-            'MANAGE_PROJECTS_ACCESS': {'tier_req': 'tier2', 'category': 'project', 'level': 'manage'},
-            'REVIEW_CODE_ACCESS': {'tier_req': 'tier2', 'category': 'review', 'level': 'review'},
+            'BASIC_CODE_ACCESS': {'tier_req': 'tier1', 'category': 'code'},
+            'EDIT_CODE_ACCESS': {'tier_req': 'tier1', 'category': 'code'},
+            'FULL_CODE_ACCESS': {'tier_req': 'tier1', 'category': 'code'},
+            'MANAGE_PROJECTS_ACCESS': {'tier_req': 'tier2', 'category': 'project'},
+            'REVIEW_CODE_ACCESS': {'tier_req': 'tier2', 'category': 'review'},
         },
         'roles': {
             'developer': ['FULL_CODE_ACCESS'],
@@ -99,11 +99,11 @@ PERMISSIONS_CONFIG = {
     },
     'Retail': {
         'permissions': {
-            'BASIC_SALES_ACCESS': {'tier_req': 'tier1', 'category': 'sales', 'level': 'basic'},
-            'EDIT_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'sales', 'level': 'edit_inventory'},
-            'FULL_SALES_ACCESS': {'tier_req': 'tier1', 'category': 'sales', 'level': 'full'},
-            'MANAGE_REPORTS_ACCESS': {'tier_req': 'tier2', 'category': 'report', 'level': 'manage'},
-            'SUPPLIER_RELATIONS_ACCESS': {'tier_req': 'tier2', 'category': 'supplier', 'level': 'relations'},
+            'BASIC_SALES_ACCESS': {'tier_req': 'tier1', 'category': 'sales'},
+            'EDIT_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'sales'},
+            'FULL_SALES_ACCESS': {'tier_req': 'tier1', 'category': 'sales'},
+            'MANAGE_REPORTS_ACCESS': {'tier_req': 'tier2', 'category': 'report'},
+            'SUPPLIER_RELATIONS_ACCESS': {'tier_req': 'tier2', 'category': 'supplier'},
         },
         'roles': {
             'sales_rep': ['BASIC_SALES_ACCESS'],
@@ -116,11 +116,11 @@ PERMISSIONS_CONFIG = {
     },
     'Agriculture': {
         'permissions': {
-            'BASIC_CROP_ACCESS': {'tier_req': 'tier1', 'category': 'crop', 'level': 'basic'},
-            'EDIT_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'crop', 'level': 'edit_inventory'},
-            'FULL_CROP_ACCESS': {'tier_req': 'tier1', 'category': 'crop', 'level': 'full'},
-            'MANAGE_FARM_ACCESS': {'tier_req': 'tier2', 'category': 'farm', 'level': 'manage'},
-            'ANALYZE_MARKET_ACCESS': {'tier_req': 'tier2', 'category': 'market', 'level': 'analyze'},
+            'BASIC_CROP_ACCESS': {'tier_req': 'tier1', 'category': 'crop'},
+            'EDIT_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'crop'},
+            'FULL_CROP_ACCESS': {'tier_req': 'tier1', 'category': 'crop'},
+            'MANAGE_FARM_ACCESS': {'tier_req': 'tier2', 'category': 'farm'},
+            'ANALYZE_MARKET_ACCESS': {'tier_req': 'tier2', 'category': 'market'},
         },
         'roles': {
             'farm_worker': ['BASIC_CROP_ACCESS', 'EDIT_INVENTORY_ACCESS'],
@@ -133,11 +133,11 @@ PERMISSIONS_CONFIG = {
     },
     'Real Estate': {
         'permissions': {
-            'BASIC_PROPERTY_ACCESS': {'tier_req': 'tier1', 'category': 'property', 'level': 'basic'},
-            'EDIT_LISTINGS_ACCESS': {'tier_req': 'tier1', 'category': 'property', 'level': 'edit_listings'},
-            'FULL_PROPERTY_ACCESS': {'tier_req': 'tier1', 'category': 'property', 'level': 'full'},
-            'MANAGE_CLIENTS_ACCESS': {'tier_req': 'tier2', 'category': 'client', 'level': 'manage'},
-            'INVESTMENT_ANALYSIS_ACCESS': {'tier_req': 'tier2', 'category': 'investment', 'level': 'analysis'},
+            'BASIC_PROPERTY_ACCESS': {'tier_req': 'tier1', 'category': 'property'},
+            'EDIT_LISTINGS_ACCESS': {'tier_req': 'tier1', 'category': 'property'},
+            'FULL_PROPERTY_ACCESS': {'tier_req': 'tier1', 'category': 'property'},
+            'MANAGE_CLIENTS_ACCESS': {'tier_req': 'tier2', 'category': 'client'},
+            'INVESTMENT_ANALYSIS_ACCESS': {'tier_req': 'tier2', 'category': 'investment'},
         },
         'roles': {
             'agent': ['BASIC_PROPERTY_ACCESS', 'EDIT_LISTINGS_ACCESS'],
@@ -150,11 +150,11 @@ PERMISSIONS_CONFIG = {
     },
     'Supermarket': {
         'permissions': {
-            'BASIC_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'inventory', 'level': 'basic'},
-            'PROCESS_CHECKOUT_ACCESS': {'tier_req': 'tier1', 'category': 'inventory', 'level': 'process_checkout'},
-            'FULL_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'inventory', 'level': 'full'},
-            'MANAGE_SCHEDULE_ACCESS': {'tier_req': 'tier2', 'category': 'schedule', 'level': 'manage'},
-            'OPTIMIZE_SUPPLY_ACCESS': {'tier_req': 'tier3', 'category': 'supply', 'level': 'optimize'},
+            'BASIC_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'inventory'},
+            'PROCESS_CHECKOUT_ACCESS': {'tier_req': 'tier1', 'category': 'inventory'},
+            'FULL_INVENTORY_ACCESS': {'tier_req': 'tier1', 'category': 'inventory'},
+            'MANAGE_SCHEDULE_ACCESS': {'tier_req': 'tier2', 'category': 'schedule'},
+            'OPTIMIZE_SUPPLY_ACCESS': {'tier_req': 'tier3', 'category': 'supply'},
         },
         'roles': {
             'cashier': ['BASIC_INVENTORY_ACCESS', 'PROCESS_CHECKOUT_ACCESS'],
@@ -167,11 +167,11 @@ PERMISSIONS_CONFIG = {
     },
     'Warehouse': {
         'permissions': {
-            'BASIC_GOODS_ACCESS': {'tier_req': 'tier1', 'category': 'goods', 'level': 'basic'},
-            'MOVE_GOODS_ACCESS': {'tier_req': 'tier1', 'category': 'goods', 'level': 'move'},
-            'FULL_GOODS_ACCESS': {'tier_req': 'tier1', 'category': 'goods', 'level': 'full'},
-            'MANAGE_INVENTORY_ACCESS': {'tier_req': 'tier2', 'category': 'inventory', 'level': 'manage'},
-            'SUPERVISE_OPERATIONS_ACCESS': {'tier_req': 'tier3', 'category': 'operations', 'level': 'supervise'},
+            'BASIC_GOODS_ACCESS': {'tier_req': 'tier1', 'category': 'goods'},
+            'MOVE_GOODS_ACCESS': {'tier_req': 'tier1', 'category': 'goods'},
+            'FULL_GOODS_ACCESS': {'tier_req': 'tier1', 'category': 'goods'},
+            'MANAGE_INVENTORY_ACCESS': {'tier_req': 'tier2', 'category': 'inventory'},
+            'SUPERVISE_OPERATIONS_ACCESS': {'tier_req': 'tier3', 'category': 'operations'},
         },
         'roles': {
             'warehouse_worker': ['BASIC_GOODS_ACCESS', 'MOVE_GOODS_ACCESS'],
