@@ -16,7 +16,7 @@ User = get_user_model()
 
 
 class TempUserSerializer(serializers.ModelSerializer):
-    role = serializers.SlugRelatedField(slug_field='name', read_only=True)
+    role = serializers.CharField(read_only=True)
     branch = serializers.SlugRelatedField(many=True, slug_field='name', read_only=True)
     created_by = serializers.SlugRelatedField(slug_field='email', read_only=True)
     is_verified = serializers.BooleanField(default=False, read_only=True)
