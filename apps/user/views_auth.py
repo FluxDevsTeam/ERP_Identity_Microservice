@@ -113,7 +113,8 @@ class UserLoginViewSet(viewsets.ModelViewSet):
             'access_token': str(tokens['access']),
             'refresh_token': str(tokens['refresh']),
             'onboarding': onboarding,
-            'is_superuser': user.is_superuser
+            'is_superuser': user.is_superuser,
+            'user': tokens['user']
         }, status=status.HTTP_200_OK)
 
     @swagger_helper("Login", "Refresh access token to get a new access token")
