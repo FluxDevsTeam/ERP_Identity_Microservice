@@ -41,7 +41,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'role': user.role if user.role else None
+            'role': user.role if user.role else None,
+            'tenant_name': user.tenant.name if user.tenant else None,
+            'branches': [{'id': str(branch.id), 'name': branch.name} for branch in user.branch.all()],
+            'permissions': user.get_effective_permissions()
         }
         return data
 
@@ -234,9 +237,13 @@ class UserSignupSerializerVerify(serializers.Serializer):
             'is_superuser': user.is_superuser,
             'user': {
                 'email': user.email,
+                'username': user.username,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'role': user.role if user.role else None
+                'role': user.role if user.role else None,
+                'tenant_name': user.tenant.name if user.tenant else None,
+                'branches': [{'id': str(branch.id), 'name': branch.name} for branch in user.branch.all()],
+                'permissions': user.get_effective_permissions()
             }
         }
 
