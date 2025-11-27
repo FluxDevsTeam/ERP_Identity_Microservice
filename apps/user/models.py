@@ -83,14 +83,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['first_name', 'last_name']
 
     def clean(self):
-        if self.role and self.tenant and self.tenant.subscription:
-            industry = self.tenant.subscription.plan.industry
-            tier = self.tenant.subscription.plan.tier_level
+        industry = self.get_industry()
+        if self.role and self.tenant and industry:
             role_data = ROLES_BY_INDUSTRY.get(industry, {}).get(self.role) or ROLES_BY_INDUSTRY.get('Other', {}).get(self.role)
             if not role_data:
                 raise ValidationError(f"Role '{self.role}' not available.")
-            if role_data.get('tier_req') != tier:
-                raise ValidationError(f"Role '{self.role}' requires tier '{role_data['tier_req']}', but tenant has '{tier}'.")
 
     def __str__(self):
         return self.username or self.email
@@ -99,9 +96,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.role == 'ceo'
 
     def get_industry(self):
-        if self.tenant and self.tenant.subscription:
-            return self.tenant.subscription.plan.industry
-        return "Other"
+        if self.tenant and hasattr(self.tenant, 'industry'):
+            return self.tenant.industry
+        return None
 
     def get_default_permissions(self):
         if not self.role:
