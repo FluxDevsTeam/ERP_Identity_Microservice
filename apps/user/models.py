@@ -112,7 +112,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         # Convert permission names to codenames
         perms = []
         for perm_name in perm_names:
-            codename = f"{industry.lower()}_{perm_name}"
+            codename = f"{industry}_{perm_name}"
             perms.append(codename)
         return perms
 
