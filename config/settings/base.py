@@ -127,7 +127,7 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
     'VERIFYING_KEY': None,
-    'AUDIENCE': ['billing-ms', 'finance-ms', 'support-ms'],
+    'AUDIENCE': ['billing-ms', 'finance-ms', 'support-ms', 'supermarket-ms'],
     'ISSUER': 'identity-ms',
     'AUTH_HEADER_TYPES': ('JWT',),
     'USER_ID_FIELD': 'id',
@@ -174,4 +174,5 @@ IDENTITY_MICROSERVICE_URL = os.getenv("IDENTITY_MICROSERVICE_URL")
 BILLING_MICROSERVICE_URL = os.getenv("BILLING_MICROSERVICE_URL")
 FINANCE_MICROSERVICE_URL = os.getenv("FINANCE_MICROSERVICE_URL")
 SUPPORT_MICROSERVICE_URL = os.getenv("SUPPORT_MICROSERVICE_URL")
+SUPERMARKET_MICROSERVICE_URL = os.getenv("SUPERMARKET_MICROSERVICE_URL")
 SUPPORT_JWT_SECRET_KEY = os.getenv("SUPPORT_JWT_SECRET_KEY")
