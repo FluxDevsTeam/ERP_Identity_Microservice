@@ -11,23 +11,17 @@ PERMISSIONS_CONFIG = {
             'BASIC_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
             'CREATE_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
             'FULL_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
-            'BASIC_LOAN_MANAGEMENT': {'tier_req': 'tier2', 'category': 'loan'},
-            'APPROVE_LOAN_ACCESS': {'tier_req': 'tier2', 'category': 'loan'},
-            'FULL_LOAN_MANAGEMENT': {'tier_req': 'tier2', 'category': 'loan'},
+            'BASIC_EXPENSE_ACCESS': {'tier_req': 'tier1', 'category': 'expense'},
+            'CREATE_EXPENSE_ACCESS': {'tier_req': 'tier1', 'category': 'expense'},
+            'FULL_EXPENSE_ACCESS': {'tier_req': 'tier1', 'category': 'expense'},
             'BASIC_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report'},
-            'EDIT_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report'},
-            'FULL_REPORT_ACCESS': {'tier_req': 'tier2', 'category': 'report'},
-            'MANAGE_BUDGET_ACCESS': {'tier_req': 'tier3', 'category': 'budget'},
-            'GENERATE_STATEMENT_ACCESS': {'tier_req': 'tier2', 'category': 'statement'},
-            'AUDIT_COMPLIANCE_ACCESS': {'tier_req': 'tier3', 'category': 'audit'},
         },
         'roles': {
-            'accountant': ['FULL_INCOME_ACCESS', 'EDIT_REPORT_ACCESS'],
-            'loan_officer': ['BASIC_LOAN_MANAGEMENT', 'APPROVE_LOAN_ACCESS'],
-            'auditor': ['FULL_INCOME_ACCESS', 'FULL_LOAN_MANAGEMENT', 'AUDIT_COMPLIANCE_ACCESS'],
-            'branch_manager': ['FULL_INCOME_ACCESS', 'FULL_LOAN_MANAGEMENT', 'EDIT_REPORT_ACCESS'],
-            'general_manager': ['FULL_INCOME_ACCESS', 'FULL_LOAN_MANAGEMENT', 'MANAGE_BUDGET_ACCESS', 'GENERATE_STATEMENT_ACCESS'],
-            'ceo': ['FULL_INCOME_ACCESS', 'FULL_LOAN_MANAGEMENT', 'MANAGE_BUDGET_ACCESS', 'GENERATE_STATEMENT_ACCESS', 'AUDIT_COMPLIANCE_ACCESS'],
+            'accountant': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'auditor': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'branch_manager': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'general_manager': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'ceo': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
         }
     },
     'Healthcare': {
@@ -260,6 +254,7 @@ ROLE_CHOICES = (
     ('warehouse_supervisor', 'Warehouse Supervisor'),
     ('admin', 'Admin'),
     ('support', 'Support Staff'),
+    # Removed loan_officer as it's not needed for basic finance microservice
 )
 
 # Generate ROLES_BY_INDUSTRY from config
