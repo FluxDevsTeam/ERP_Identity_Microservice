@@ -11,6 +11,7 @@ class Tenant(models.Model):
         ("Banned", "Banned")
     )
     INDUSTRY_CHOICES = (
+    ("Basic", "Basic"),
     ("Finance", "Finance"),
     ("Healthcare", "Healthcare"),
     ("Production", "Production"),

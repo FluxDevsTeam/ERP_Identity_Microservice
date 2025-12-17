@@ -24,6 +24,24 @@ PERMISSIONS_CONFIG = {
             'ceo': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
         }
     },
+    'Basic': {
+        'permissions': {
+            'BASIC_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
+            'CREATE_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
+            'FULL_INCOME_ACCESS': {'tier_req': 'tier1', 'category': 'income'},
+            'BASIC_EXPENSE_ACCESS': {'tier_req': 'tier1', 'category': 'expense'},
+            'CREATE_EXPENSE_ACCESS': {'tier_req': 'tier1', 'category': 'expense'},
+            'FULL_EXPENSE_ACCESS': {'tier_req': 'tier1', 'category': 'expense'},
+            'BASIC_REPORT_ACCESS': {'tier_req': 'tier1', 'category': 'report'},
+        },
+        'roles': {
+            'accountant': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'auditor': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'branch_manager': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'general_manager': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+            'ceo': ['FULL_INCOME_ACCESS', 'FULL_EXPENSE_ACCESS', 'BASIC_REPORT_ACCESS'],
+        }
+    },
     'Healthcare': {
         'permissions': {
             'BASIC_PATIENT_ACCESS': {'tier_req': 'tier1', 'category': 'patient'},
