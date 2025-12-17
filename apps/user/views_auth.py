@@ -247,6 +247,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                             'last_name': user.last_name,
                             'role': user.role if user.role else None,
                             'tenant_name': user.tenant.name if user.tenant else None,
+                            'tenant_industry': user.tenant.industry if user.tenant else None,
                             'branches': [{'id': str(branch.id), 'name': branch.name} for branch in user.branch.all()],
                             'permissions': user.get_effective_permissions()
                         }
@@ -367,6 +368,7 @@ class GoogleAuthViewSet(viewsets.ModelViewSet):
                     'last_name': user.last_name,
                     'role': user.role if user.role else None,
                     'tenant_name': user.tenant.name if user.tenant else None,
+                    'tenant_industry': user.tenant.industry if user.tenant else None,
                     'branches': [{'id': str(branch.id), 'name': branch.name} for branch in user.branch.all()],
                     'permissions': user.get_effective_permissions()
                 }
