@@ -127,7 +127,7 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
     'VERIFYING_KEY': None,
-    'AUDIENCE': ['billing-ms', 'finance-ms', 'support-ms', 'supermarket-ms', 'basic-ms'],
+    'AUDIENCE': ['billing-ms', 'finance-ms', 'support-ms', 'supermarket-ms', 'basic-ms', 'pharmacy-ms', 'production-ms'],
     'ISSUER': 'identity-ms',
     'AUTH_HEADER_TYPES': ('JWT',),
     'USER_ID_FIELD': 'id',
